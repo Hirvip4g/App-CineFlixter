@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Loading...</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #000;
+      overflow: hidden;
+    }
+    .loader {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #000;
+      z-index: 9999;
+    }
+    .spinner {
+      border: 6px solid #f3f3f3;
+      border-top: 6px solid #e50914;
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    iframe {
+      width: 100vw;
+      height: 100vh;
+      border: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="loader">
+    <div class="spinner"></div>
+  </div>
+
+  <iframe id="contenido" src=""></iframe>
+
+  <script>
+    // Obtener el parámetro de la URL
+    const params = new URLSearchParams(window.location.search);
+    const url = params.get('url');
+
+    if (url) {
+      document.getElementById('contenido').src = url;
+    } else {
+      alert('Falta el parámetro ?url=');
+    }
+
+    // Si quieres que el loader se oculte cuando el iframe cargue (opcional)
+    // document.getElementById('contenido').onload = () => {
+    //   document.querySelector('.loader').style.display = 'none';
+    // };
+  </script>
+</body>
+</html>

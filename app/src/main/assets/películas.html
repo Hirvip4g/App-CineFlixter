@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <title>Cargando...</title>
+    <style>
+        :root {
+            /* @tweakable brand color */
+            --brand-red: #e50914;
+            /* @tweakable background dark color */
+            --bg-dark: #000000;
+            /* @tweakable background gray color */
+            --bg-gray: #111111;
+            --bg-light: #222222;
+            /* @tweakable extra small spacing */
+            --spacing-xs: 4px;
+            /* @tweakable small spacing */
+            --spacing-sm: 8px;
+            /* @tweakable medium spacing for general padding */
+            --spacing-md: 12px;
+            /* @tweakable large spacing for section padding */
+            --spacing-lg: 20px;
+            /* @tweakable extra large spacing for main content padding */
+            --spacing-xl: 24px;
+            /* @tweakable extra extra large spacing for hero padding */
+            --spacing-xxl: 32px;
+            /* @tweakable border radius */
+            --radius-sm: 4px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            /* @tweakable shadows */
+            --shadow-sm: 0 2px 8px rgba(0,0,0,0.4);
+            --shadow-md: 0 4px 16px rgba(0,0,0,0.6);
+            /* @tweakable transitions */
+            --transition-fast: 0.2s ease;
+            --transition-medium: 0.4s ease;
+            /* @tweakable hero section height */
+            --hero-height: 60vh;
+            /* @tweakable similar movies grid desktop column count */
+            --similar-grid-columns: 5;
+            /* @tweakable gap between similar content cards */
+            --similar-gap: 8px;
+            /* @tweakable synopsis collapsed height */
+            --synopsis-collapsed-height: 3.6em;
+            --synopsis-expanded: none;
+            /* @tweakable card hover scale */
+            --hover-scale: 1.05;
+            /* @tweakable modal overlay opacity */
+            --modal-overlay: 0.9;
+            /* @tweakable button Y padding */
+            --btn-padding-y: 12px;
+            /* @tweakable button X padding */
+            --btn-padding-x: 24px;
+            /* @tweakable button font size */
+            --btn-font-size: 1rem;
+            /* @tweakable synopsis positioning */
+            --synopsis-margin-top: 20px;
+            /* @tweakable synopsis line height */
+            --synopsis-line-height: 1.6;
+            /* @tweakable synopsis animation duration */
+            --synopsis-transition-duration: 0.4s;
+            /* @tweakable playback modal animation duration */
+            --modal-animation-duration: 0.3s;
+            /* @tweakable notification duration in ms */
+            --notification-duration: 3000ms;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-dark);
+            color: white;
+            overflow-x: hidden;
+        }
+
+        /* Loading */
+        .loader {
+            position: fixed;
+            inset: 0;
+            background: var(--bg-dark);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--bg-light);
+            border-top: 3px solid var(--brand-red);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Navigation */
+        .nav-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            padding: var(--spacing-md);
+            background: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, transparent 100%);
+        }
+
+        .back-btn {
+            width: 36px;
+            height: 36px;
+            background: rgba(0,0,0,0.6);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all var(--transition-fast);
+        }
+
+        .back-btn:hover {
+            background: rgba(255,255,255,0.2);
+            transform: scale(var(--hover-scale));
+        }
+
+        /* Hero Section */
+        .hero {
+            position: relative;
+            height: var(--hero-height);
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            display: flex;
+            align-items: end;
+            padding-bottom: var(--spacing-xxl);
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                180deg,
+                transparent 40%,
+                rgba(0,0,0,0.8) 100%
+            );
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 10;
+            max-width: 800px;
+            padding: 0 var(--spacing-md);
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .hero-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: var(--spacing-md);
+            text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+        }
+
+        .hero-meta {
+            display: flex;
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-lg);
+            font-size: 0.9rem;
+            color: #bbb;
+            align-items: center;
+        }
+
+        .hero-meta span:not(:last-child)::after {
+            content: '•';
+            margin-left: var(--spacing-sm);
+            color: #666;
+        }
+
+        /* Buttons */
+        .actions {
+            display: flex;
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .btn {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            padding: var(--btn-padding-y) var(--btn-padding-x);
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: var(--btn-font-size);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .btn-primary {
+            background: var(--brand-red);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #f61218;
+            transform: scale(var(--hover-scale));
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            backdrop-filter: blur(8px);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.3);
+            transform: scale(var(--hover-scale));
+        }
+
+        /* Synopsis */
+        .synopsis-container {
+            margin-top: var(--synopsis-margin-top);
+            padding: 0 var(--spacing-md);
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .synopsis {
+            font-size: 1rem;
+            line-height: var(--synopsis-line-height);
+            color: #ddd;
+            /* @tweakable line clamp for collapsed state */
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            transition: max-height var(--synopsis-transition-duration);
+            max-height: var(--synopsis-collapsed-height);
+        }
+
+        .synopsis.expanded {
+            -webkit-line-clamp: unset;
+            max-height: 1000px; /* Large enough value to show all content */
+        }
+
+        .expand-btn {
+            background: none;
+            border: none;
+            color: var(--brand-red);
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-top: var(--spacing-sm);
+            transition: all var(--transition-fast);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+        }
+
+        .expand-btn:hover {
+            color: #ff4757;
+        }
+        
+        /* @tweakable expand button active state */
+        .expand-btn:active {
+            transform: translateY(1px);
+            color: #fff;
+        }
+
+        /* Main Content */
+        .main-content {
+            padding: var(--spacing-xl) var(--spacing-md);
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: var(--spacing-lg);
+        }
+
+        /* Similar Movies Grid */
+        .similar-grid {
+            display: grid;
+            /* @tweakable similar movies grid desktop column count */
+            grid-template-columns: repeat(var(--similar-grid-columns), 1fr);
+            gap: var(--similar-gap);
+        }
+
+        @media (max-width: 1200px) {
+            .similar-grid { 
+                /* @tweakable similar movies grid for large desktops/laptops */
+                grid-template-columns: repeat(4, 1fr); 
+            }
+        }
+
+        @media (max-width: 768px) {
+            .similar-grid { 
+                /* @tweakable similar movies grid for tablets */
+                grid-template-columns: repeat(3, 1fr); 
+            }
+        }
+
+        @media (max-width: 480px) {
+            .similar-grid { 
+                /* @tweakable similar movies grid for mobile phones */
+                grid-template-columns: repeat(2, 1fr); 
+            }
+        }
+
+        .movie-card {
+            position: relative;
+            aspect-ratio: 2/3;
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            cursor: pointer;
+            transition: all var(--transition-medium);
+            background: var(--bg-gray);
+            /* @tweakable similar card min height */
+            min-height: 150px;
+        }
+
+        .movie-card:hover {
+            transform: scale(var(--hover-scale));
+            box-shadow: var(--shadow-md);
+        }
+
+        .movie-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform var(--transition-medium);
+        }
+
+        .movie-card:hover img {
+            transform: scale(1.1);
+        }
+
+        /* Modal */
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,var(--modal-overlay));
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn var(--modal-animation-duration) ease;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background: var(--bg-gray);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-lg);
+            max-width: 400px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            animation: slideUp var(--modal-animation-duration) ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-md);
+            border-bottom: 1px solid var(--bg-light);
+            padding-bottom: var(--spacing-md);
+        }
+
+        .modal-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: #bbb;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: color var(--transition-fast);
+        }
+
+        .close-btn:hover {
+            color: white;
+        }
+
+        .quality-options {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+        }
+
+        .quality-option {
+            padding: var(--spacing-md);
+            background: var(--bg-dark);
+            border: 1px solid var(--bg-light);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            text-align: center;
+        }
+
+        .quality-option:hover {
+            border-color: var(--brand-red);
+            background: rgba(229,9,14,0.1);
+        }
+
+        .quality-option.active {
+            background: var(--brand-red);
+            color: white;
+        }
+
+        /* Notifications */
+        #notifications-container {
+            position: fixed;
+            top: 20px; 
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            max-width: 450px;
+            padding: 10px;
+            box-sizing: border-box;
+            z-index: 1004; 
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            pointer-events: none;
+        }
+        
+        .notification {
+            background: linear-gradient(135deg, rgba(51,51,51,0.95), rgba(31,31,31,0.98));
+            backdrop-filter: blur(20px);
+            color: white;
+            padding: 16px 20px;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            display: flex;
+            align-items: center;
+            opacity: 0;
+            transform: translateY(-30px) scale(0.9);
+            transition: all var(--transition-medium) cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: auto;
+            font-size: 14px;
+            font-weight: 500;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .notification.show {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+        
+        .notification--success {
+            background: linear-gradient(135deg, rgba(229,9,20,0.9), rgba(255,107,107,0.8));
+            border-color: rgba(229,9,20,0.3);
+            box-shadow: 0 8px 32px rgba(229,9,20,0.3);
+        }
+        
+        .notification--error {
+            background: linear-gradient(135deg, rgba(211,47,47,0.9), rgba(244,67,54,0.8));
+            border-color: rgba(211,47,47,0.3);
+            box-shadow: 0 8px 32px rgba(211,47,47,0.3);
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .hero {
+                --hero-height: 50vh;
+                padding-bottom: var(--spacing-md);
+            }
+            .hero-title {
+                font-size: 2.2rem;
+            }
+            .hero-meta {
+                font-size: 0.8rem;
+                gap: var(--spacing-sm);
+            }
+            .btn {
+                padding: 10px 18px;
+                font-size: 0.9rem;
+            }
+            .hero-content {
+                padding: 0 var(--spacing-sm);
+            }
+            .synopsis-container, .main-content {
+                padding: 0 var(--spacing-sm);
+            }
+            .modal-content {
+                padding: var(--spacing-md);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .hero {
+                --hero-height: 45vh;
+                padding-bottom: var(--spacing-sm);
+            }
+            .hero-title {
+                font-size: 1.8rem;
+                margin-bottom: var(--spacing-sm);
+            }
+            .actions {
+                flex-direction: column;
+                gap: var(--spacing-sm);
+            }
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+            .synopsis-container, .main-content {
+                padding: 0 var(--spacing-sm);
+            }
+            .modal-content {
+                width: 95%;
+                padding: var(--spacing-md);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading -->
+    <div class="loader" id="loading">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- Notifications container -->
+    <div id="notifications-container"></div>
+
+    <!-- Navigation -->
+    <nav class="nav-bar">
+        <button class="back-btn" onclick="history.back()">
+            <i class="material-icons">arrow_back</i>
+        </button>
+    </nav>
+
+    <!-- Hero -->
+    <section class="hero" id="hero">
+        <div class="hero-content">
+            <h1 class="hero-title" id="title">Cargando...</h1>
+            <div class="hero-meta">
+                <span id="year">—</span>
+                <span id="duration">—</span>
+                <span id="rating">—</span>
+            </div>
+            <div class="actions">
+                <button class="btn btn-primary" onclick="openModal()">
+                    <i class="material-icons">play_arrow</i>
+                    Reproducir
+                </button>
+                <button class="btn btn-secondary" onclick="toggleFavorite()">
+                    <i class="material-icons" id="favoriteIcon">add</i>
+                    <span id="favoriteText">Mi Lista</span>
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Synopsis -->
+    <div class="synopsis-container">
+        <p class="synopsis" id="synopsis">Cargando sinopsis...</p>
+        <button class="expand-btn" id="expandBtn" onclick="toggleSynopsis()">
+            Ver más
+            <i class="material-icons">expand_more</i>
+        </button>
+    </div>
+
+    <!-- Similar Movies -->
+    <div class="main-content">
+        <section>
+            <h2 class="section-title">Películas similares</h2>
+            <div class="similar-grid" id="similar-grid">
+                <!-- Loading similar movies -->
+            </div>
+        </section>
+    </div>
+
+    <!-- Playback Modal -->
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Opciones de reproducción</h3>
+                <button class="close-btn" onclick="closeModal()">×</button>
+            </div>
+            <div class="quality-options" id="quality-options">
+                <!-- Quality options will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Firebase config
+        const CONFIG = {
+            apiKey: "AIzaSyAEbMY3zYyxIjTREF-0kO-eK7soHAyy084",
+            authDomain: "web-de-peli.firebaseapp.com",
+            databaseURL: "https://web-de-peli-default-rtdb.firebaseio.com",
+            projectId: "web-de-peli",
+            storageBucket: "web-de-peli.firebasestorage.app",
+            messagingSenderId: "94710081234",
+            appId: "1:94710081234:web:4a106a5e25bd50e6c56f0b"
+        };
+
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+        import { getDatabase, ref, onValue } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
+
+        const app = initializeApp(CONFIG);
+        const db = getDatabase(app);
+
+        /* @tweakable Set debug level for console logs (0 = off, 1 = important, 2 = verbose) */
+        const debugLevel = 2; 
+
+        function debugLog(level, message, ...args) {
+            if (debugLevel >= level) {
+                console.log(`DEBUG (Level ${level}) - Peliculas: ${message}`, ...args);
+            }
+        }
+
+        // Get movie ID from URL
+        const params = new URLSearchParams(location.search);
+        const id = params.get('id');
+        debugLog(2, 'Received ID from URL:', id);
+
+        if (!id) history.back();
+
+        let currentMovie = null;
+        let allMovies = [];
+
+        // --- Notifications function ---
+        /* @tweakable notification display duration */
+        function showNotification(message, type = 'default', duration = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--notification-duration'))) {
+            const container = document.getElementById('notifications-container');
+            if (!container) {
+                console.error('Notifications container not found!');
+                return;
+            }
+
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            if (type === 'success') {
+                notification.classList.add('notification--success');
+            } else if (type === 'error') {
+                notification.classList.add('notification--error');
+            }
+            notification.textContent = message;
+
+            container.appendChild(notification);
+
+            // Trigger reflow to ensure transition works for 'show' class
+            void notification.offsetWidth;
+
+            notification.classList.add('show');
+
+            setTimeout(() => {
+                notification.classList.remove('show');
+                // Remove the notification from DOM after transition ends
+                notification.addEventListener('transitionend', () => {
+                    notification.remove();
+                }, { once : true });
+            }, duration);
+        }
+
+        // Favorites
+        /* @tweakable local storage key for favorites */
+        const FAVORITES_STORAGE_KEY = 'cineflixter-favorites';
+        const getFavorites = () => JSON.parse(localStorage.getItem(FAVORITES_STORAGE_KEY) || '[]');
+        const setFavorites = arr => localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(arr));
+
+        // Load movie data
+        onValue(ref(db, 'contenidos'), snap => {
+            const data = snap.val();
+            if (!data) {
+                document.getElementById('loading').style.display = 'none';
+                showNotification('No se encontró contenido.', 'error');
+                return;
+            }
+            
+            // Map Firebase keys to 'id' property for consistent access
+            allMovies = Object.keys(data).map(key => ({
+                id: key,
+                ...data[key]
+            }));
+            debugLog(2, 'All content fetched from Firebase:', allMovies);
+            
+            currentMovie = allMovies.find(m => m.id === id);
+            debugLog(2, `Attempting to find movie with ID '${id}'. Found movie:`, currentMovie);
+            
+            if (!currentMovie) {
+                document.getElementById('loading').style.display = 'none';
+                showNotification('La película o serie no fue encontrada.', 'error');
+                debugLog(1, `Movie with ID '${id}' not found in fetched data.`);
+                // Optionally redirect or hide content if not found
+                return;
+            }
+            
+            // Validate that the retrieved item is indeed a movie (if "movie" type is expected)
+            if (currentMovie.type && currentMovie.type !== 'movie') {
+                debugLog(1, `Warning: Item with ID '${id}' is of type '${currentMovie.type}' but expected 'movie'. Displaying anyway.`);
+                // Could also redirect to series.html here if type mismatch is critical
+                // window.location.href = `series.html?id=${id}`;
+                // return;
+            }
+
+            renderMovie(currentMovie);
+            renderSimilar(currentMovie);
+            document.getElementById('loading').style.display = 'none';
+        }, (error) => {
+            console.error("Error al cargar el contenido desde Firebase:", error);
+            showNotification('Error al cargar el contenido desde la base de datos.', 'error');
+            document.getElementById('loading').style.display = 'none';
+        });
+
+        function renderMovie(movie) {
+            document.title = movie.title;
+            
+            // Hero background
+            const hero = document.getElementById('hero');
+            const bg = movie.banner || movie.poster;
+            hero.style.backgroundImage = `url(${bg})`;
+            
+            // Movie info
+            document.getElementById('title').textContent = movie.title;
+            document.getElementById('year').textContent = movie.year || '—';
+            document.getElementById('duration').textContent = movie.duration || '—';
+            document.getElementById('rating').textContent = movie.rating || 'NR';
+            document.getElementById('synopsis').textContent = movie.synopsis || 'Sin sinopsis disponible';
+            
+            // Update favorite button
+            updateFavoriteButton();
+        }
+
+        function renderSimilar(movie) {
+            // Filter similar movies by category, excluding the current movie
+            const similar = allMovies
+                .filter(m => m.id !== movie.id && m.category === movie.category && m.type === movie.type)
+                .slice(0, 6); // Limit to 6 similar movies for display
+
+            debugLog(2, `Rendering similar movies for category '${movie.category}' and type '${movie.type}':`, similar);
+
+            const grid = document.getElementById('similar-grid');
+            grid.innerHTML = '';
+
+            if (similar.length === 0) {
+                grid.innerHTML = '<p style="text-align: center; color: #bbb;">No hay contenido similar disponible.</p>';
+            } else {
+                similar.forEach(m => {
+                    const card = document.createElement('div');
+                    card.className = 'movie-card';
+                    card.innerHTML = `
+                        <img src="${m.poster}" alt="${m.title}" loading="lazy">
+                    `;
+                    card.onclick = () => {
+                        const targetPage = m.type === 'series' ? 'series.html' : 'películas.html';
+                        debugLog(2, `Navigating from similar card: ${m.title} (Type: ${m.type}, ID: ${m.id}) to URL: ${targetPage}?id=${m.id}`);
+                        window.location.href = `${targetPage}?id=${m.id}`; // Ensure correct deep linking
+                    };
+                    grid.appendChild(card);
+                });
+            }
+        }
+
+        function toggleFavorite() {
+            if (!id) {
+                showNotification('Error: No se pudo identificar el contenido.', 'error');
+                debugLog(1, 'Error: No ID found for favorite toggle.');
+                return;
+            }
+
+            const favorites = getFavorites();
+            const index = favorites.indexOf(id);
+            
+            if (index > -1) {
+                favorites.splice(index, 1);
+                setFavorites(favorites);
+                showNotification('Eliminado de Mi Lista', 'default');
+                debugLog(2, `Removed ID '${id}' from favorites.`);
+            } else {
+                favorites.push(id);
+                setFavorites(favorites);
+                showNotification('Agregado a Mi Lista', 'success');
+                debugLog(2, `Added ID '${id}' to favorites.`);
+            }
+            
+            updateFavoriteButton();
+        }
+
+        function updateFavoriteButton() {
+            const favorites = getFavorites();
+            const isFavorite = favorites.includes(id);
+            
+            const icon = document.getElementById('favoriteIcon');
+            const text = document.getElementById('favoriteText');
+            
+            if (isFavorite) {
+                icon.textContent = 'check';
+                text.textContent = 'Quitar de mi lista';
+            } else {
+                icon.textContent = 'add';
+                text.textContent = 'Mi Lista';
+            }
+        }
+
+        function toggleSynopsis() {
+            const synopsis = document.getElementById('synopsis');
+            const btn = document.getElementById('expandBtn');
+            
+            if (synopsis.classList.contains('expanded')) {
+                synopsis.classList.remove('expanded');
+                btn.innerHTML = 'Ver más <i class="material-icons">expand_more</i>';
+            } else {
+                synopsis.classList.add('expanded');
+                btn.innerHTML = 'Ver menos <i class="material-icons">expand_less</i>';
+            }
+        }
+
+        function openModal() {
+            const modal = document.getElementById('modal');
+            const optionsContainer = document.getElementById('quality-options');
+            
+            optionsContainer.innerHTML = ''; // Clear previous options
+            
+            if (!currentMovie) {
+                showNotification('Contenido no cargado. Intente de nuevo más tarde.', 'error');
+                debugLog(1, 'Error: Cannot open modal, currentMovie is null.');
+                return;
+            }
+
+            if (currentMovie.options && currentMovie.options.length > 0) {
+                currentMovie.options.forEach((option, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'quality-option';
+                    /* @tweakable default label for playback option if not provided */
+                    div.textContent = option.label || `Opción ${index + 1}`; 
+                    div.onclick = () => play(option.src); // Pass only the URL
+                    optionsContainer.appendChild(div);
+                });
+                modal.classList.add('active');
+                debugLog(2, 'Opened playback modal with options:', currentMovie.options);
+            } else if (currentMovie.src) { // If there's a direct src but no options array
+                const div = document.createElement('div');
+                div.className = 'quality-option';
+                div.textContent = 'Ver ahora';
+                div.onclick = () => play(currentMovie.src); // Pass only the URL
+                optionsContainer.appendChild(div);
+                modal.classList.add('active');
+                debugLog(2, 'Opened playback modal with direct source:', currentMovie.src);
+            } else {
+                showNotification('No hay opciones de reproducción disponibles.', 'error');
+                modal.classList.remove('active'); // Ensure modal is closed if no options
+                debugLog(1, 'Error: No playback options or direct source available for current movie.');
+            }
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('modal');
+            modal.classList.remove('active');
+            debugLog(2, 'Closed playback modal.');
+        }
+
+        function play(url) {
+            if (url) {
+                debugLog(2, 'Attempting to play URL:', url);
+                window.open(url, '_blank');
+            } else {
+                showNotification('No se pudo iniciar la reproducción. URL no encontrada.', 'error');
+                debugLog(1, 'Error: Playback URL is empty.');
+            }
+            closeModal(); // Close modal after attempting to play
+        }
+
+        // Close modal on outside click
+        document.getElementById('modal').addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal')) {
+                closeModal();
+            }
+        });
+
+        // Expose functions to the global scope for onclick attributes in HTML
+        window.openModal = openModal;
+        window.toggleFavorite = toggleFavorite;
+        window.toggleSynopsis = toggleSynopsis;
+        window.closeModal = closeModal;
+        window.play = play;
+    </script>
+</body>
+</html>

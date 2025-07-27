@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <title>Cargando...</title>
+    <style>
+        :root {
+            /* @tweakable brand color */
+            --brand-red: #e50914;
+            /* @tweakable background dark color */
+            --bg-dark: #000000; /* Changed from #0A0A0A to darker */
+            /* @tweakable background gray color */
+            --bg-gray: #111111; /* Changed from #151515 to darker */
+            --bg-light: #222222; /* Changed from #333 to darker */
+            /* @tweakable extra small spacing */
+            --spacing-xs: 4px;
+            /* @tweakable small spacing */
+            --spacing-sm: 8px;
+            /* @tweakable medium spacing for general padding */
+            --spacing-md: 12px;
+            /* @tweakable large spacing for section padding */
+            --spacing-lg: 20px;
+            /* @tweakable extra large spacing for main content padding */
+            --spacing-xl: 24px;
+            /* @tweakable extra extra large spacing for hero padding */
+            --spacing-xxl: 32px;
+            /* @tweakable border radius */
+            --radius-sm: 4px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            /* @tweakable shadows */
+            --shadow-sm: 0 2px 8px rgba(0,0,0,0.4);
+            --shadow-md: 0 4px 16px rgba(0,0,0,0.6);
+            /* @tweakable transitions */
+            --transition-fast: 0.2s ease;
+            --transition-medium: 0.4s ease;
+            /* @tweakable hero section height */
+            --hero-height: 60vh;
+            /* @tweakable similar movies grid desktop column count */
+            --similar-grid-columns: 5;
+            /* @tweakable gap between similar content cards */
+            --similar-gap: 8px;
+            /* @tweakable synopsis collapsed height */
+            --synopsis-collapsed-height: 3.6em;
+            --synopsis-expanded: none;
+            /* @tweakable card hover scale */
+            --hover-scale: 1.05;
+            /* @tweakable modal overlay opacity */
+            --modal-overlay: 0.9;
+            /* @tweakable button sizes */
+            --btn-padding-y: 12px;
+            --btn-padding-x: 24px;
+            --btn-font-size: 1rem;
+            /* @tweakable synopsis positioning */
+            --synopsis-margin-top: 20px;
+            --synopsis-line-height: 1.6;
+            /* @tweakable synopsis animation duration */
+            --synopsis-transition-duration: 0.4s;
+            /* @tweakable playback modal animation duration */
+            --modal-animation-duration: 0.3s;
+            /* @tweakable notification duration in ms */
+            --notification-duration: 3000ms;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-dark);
+            color: white;
+            overflow-x: hidden;
+        }
+
+        /* Loading */
+        .loader {
+            position: fixed;
+            inset: 0;
+            background: var(--bg-dark);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--bg-light);
+            border-top: 3px solid var(--brand-red);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Navigation */
+        .nav-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            padding: var(--spacing-md);
+            background: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, transparent 100%);
+        }
+
+        .back-btn {
+            width: 36px;
+            height: 36px;
+            background: rgba(0,0,0,0.6);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all var(--transition-fast);
+        }
+
+        .back-btn:hover {
+            background: rgba(255,255,255,0.2);
+            transform: scale(var(--hover-scale));
+        }
+
+        /* Hero Section */
+        .hero {
+            position: relative;
+            height: var(--hero-height);
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            display: flex;
+            align-items: end;
+            padding-bottom: var(--spacing-xxl);
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                180deg,
+                transparent 40%,
+                rgba(0,0,0,0.8) 100%
+            );
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 10;
+            max-width: 800px;
+            padding: 0 var(--spacing-md);
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .hero-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: var(--spacing-md);
+            text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+        }
+
+        .hero-meta {
+            display: flex;
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-lg);
+            font-size: 0.9rem;
+            color: #bbb;
+            align-items: center;
+        }
+
+        .hero-meta span:not(:last-child)::after {
+            content: '•';
+            margin-left: var(--spacing-sm);
+            color: #666;
+        }
+
+        /* Buttons */
+        .actions {
+            display: flex;
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .btn {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            padding: var(--btn-padding-y) var(--btn-padding-x);
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: var(--btn-font-size);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .btn-primary {
+            background: var(--brand-red);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #f61218;
+            transform: scale(var(--hover-scale));
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            backdrop-filter: blur(8px);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.3);
+            transform: scale(var(--hover-scale));
+        }
+
+        /* Synopsis */
+        .synopsis-container {
+            margin-top: var(--synopsis-margin-top);
+            padding: 0 var(--spacing-md);
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .synopsis {
+            font-size: 1rem;
+            line-height: var(--synopsis-line-height);
+            color: #ddd;
+            /* @tweakable line clamp for collapsed state */
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            transition: max-height var(--synopsis-transition-duration);
+            max-height: var(--synopsis-collapsed-height);
+        }
+
+        .synopsis.expanded {
+            -webkit-line-clamp: unset;
+            max-height: 1000px; /* Large enough value to show all content */
+        }
+
+        .expand-btn {
+            background: none;
+            border: none;
+            color: var(--brand-red);
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-top: var(--spacing-sm);
+            transition: all var(--transition-fast);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+        }
+
+        .expand-btn:hover {
+            color: #ff4757;
+        }
+        
+        /* @tweakable expand button active state */
+        .expand-btn:active {
+            transform: translateY(1px);
+            color: #fff;
+        }
+
+        /* Main Content (for Similar Series, if added) */
+        .main-content {
+            padding: var(--spacing-xl) var(--spacing-md);
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: var(--spacing-lg);
+        }
+
+        /* Similar Movies/Series Grid */
+        .similar-grid {
+            display: grid;
+            grid-template-columns: repeat(var(--similar-grid-columns), 1fr);
+            gap: var(--similar-gap);
+            /* @tweakable responsive grid */
+        }
+
+        @media (max-width: 1200px) {
+            .similar-grid { 
+                /* @tweakable similar series grid for large desktops/laptops */
+                grid-template-columns: repeat(4, 1fr); 
+            }
+        }
+
+        @media (max-width: 768px) {
+            .similar-grid { 
+                /* @tweakable similar series grid for tablets */
+                grid-template-columns: repeat(3, 1fr); 
+            }
+        }
+
+        @media (max-width: 480px) {
+            .similar-grid { 
+                /* @tweakable similar series grid for mobile phones */
+                grid-template-columns: repeat(2, 1fr); 
+            }
+        }
+
+        .movie-card { /* Renamed from movie-card to content-card logically */
+            position: relative;
+            aspect-ratio: 2/3;
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            cursor: pointer;
+            transition: all var(--transition-medium);
+            background: var(--bg-gray);
+            /* @tweakable similar card size */
+            min-height: 150px;
+        }
+
+        .movie-card:hover {
+            transform: scale(var(--hover-scale));
+            box-shadow: var(--shadow-md);
+        }
+
+        .movie-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform var(--transition-medium);
+        }
+
+        .movie-card:hover img {
+            transform: scale(1.1);
+        }
+
+        /* Modal */
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,var(--modal-overlay));
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn var(--modal-animation-duration) ease;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background: var(--bg-gray);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-lg);
+            /* @tweakable max-width for series modal to accommodate episode lists */
+            max-width: 600px; 
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            animation: slideUp var(--modal-animation-duration) ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-md);
+            border-bottom: 1px solid var(--bg-light);
+            padding-bottom: var(--spacing-md);
+        }
+
+        .modal-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: #bbb;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: color var(--transition-fast);
+        }
+
+        .close-btn:hover {
+            color: white;
+        }
+
+        /* Episode List Specific Styles (adapted from Materialize Collapsible) */
+        .episode-list-container {
+            margin-top: var(--spacing-md);
+        }
+        .season-collapsible {
+            border: none;
+            box-shadow: none;
+        }
+        .season-header {
+            background-color: var(--bg-light);
+            color: white;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            font-weight: 500;
+            transition: background-color 0.3s ease;
+            padding: var(--spacing-md) var(--spacing-lg);
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            border-radius: var(--radius-sm);
+            margin-bottom: 2px; /* Small gap between headers */
+        }
+        .season-header:hover {
+            background-color: rgba(229,9,14,0.1);
+            border-color: var(--brand-red);
+        }
+        .season-header .material-icons {
+            margin-right: var(--spacing-sm);
+            color: var(--brand-red);
+            transition: transform 0.3s ease;
+        }
+        .season-header.active .material-icons {
+            transform: rotate(90deg); /* Rotate arrow when active */
+        }
+        .season-body {
+            background-color: var(--bg-dark);
+            border-bottom: none;
+            padding: 0;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease-out;
+            border-radius: var(--radius-sm);
+            margin-bottom: 5px;
+        }
+        .season-body.active {
+            max-height: 500px; /* Adjust based on expected content height */
+        }
+
+        .episode-item {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            color: #eeeeee;
+            padding: var(--spacing-md) var(--spacing-lg);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            cursor: pointer;
+            transition: background-color 0.3s, color 0.3s;
+            text-decoration: none;
+        }
+        .episode-item:last-child {
+            border-bottom: none;
+        }
+        .episode-item:hover {
+            background-color: rgba(229,9,14,0.1);
+            color: white;
+        }
+        .episode-item:hover .play-icon {
+            color: var(--brand-red);
+        }
+        .episode-number {
+            color: #bdbdbd;
+            font-weight: 600;
+            font-size: 0.9em;
+            flex-shrink: 0;
+        }
+        .episode-title {
+            flex-grow: 1;
+            color: #e0e0e0;
+            font-weight: 400;
+        }
+        .play-icon {
+            color: #757575;
+            font-size: 28px;
+            transition: color 0.3s;
+        }
+
+        /* Notifications */
+        #notifications-container {
+            position: fixed;
+            top: 20px; 
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            max-width: 450px;
+            padding: 10px;
+            box-sizing: border-box;
+            z-index: 1004; 
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            pointer-events: none;
+        }
+        
+        .notification {
+            background: linear-gradient(135deg, rgba(51,51,51,0.95), rgba(31,31,31,0.98));
+            backdrop-filter: blur(20px);
+            color: white;
+            padding: 16px 20px;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            display: flex;
+            align-items: center;
+            opacity: 0;
+            transform: translateY(-30px) scale(0.9);
+            transition: all var(--transition-medium) cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: auto;
+            font-size: 14px;
+            font-weight: 500;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .notification.show {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+        
+        .notification--success {
+            background: linear-gradient(135deg, rgba(229,9,20,0.9), rgba(255,107,107,0.8));
+            border-color: rgba(229,9,20,0.3);
+            box-shadow: 0 8px 32px rgba(229,9,20,0.3);
+        }
+        
+        .notification--error {
+            background: linear-gradient(135deg, rgba(211,47,47,0.9), rgba(244,67,54,0.8));
+            border-color: rgba(211,47,47,0.3);
+            box-shadow: 0 8px 32px rgba(211,47,47,0.3);
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .hero-title {
+                font-size: 2.2rem;
+            }
+            .hero-meta {
+                font-size: 0.8rem;
+                gap: var(--spacing-sm);
+            }
+            .btn {
+                padding: 10px 18px;
+                font-size: 0.9rem;
+            }
+            .hero {
+                --hero-height: 50vh;
+                padding-bottom: var(--spacing-md);
+            }
+            .hero-content {
+                padding: 0 var(--spacing-sm);
+            }
+            .synopsis-container, .main-content {
+                padding: 0 var(--spacing-sm);
+            }
+            .modal-content {
+                padding: var(--spacing-md);
+            }
+            .season-header, .episode-item {
+                padding: var(--spacing-md) var(--spacing-md);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .hero {
+                --hero-height: 45vh;
+                padding-bottom: var(--spacing-sm);
+            }
+            .hero-title {
+                font-size: 1.8rem;
+                margin-bottom: var(--spacing-sm);
+            }
+            .actions {
+                flex-direction: column;
+                gap: var(--spacing-sm);
+            }
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+            .synopsis-container, .main-content {
+                padding: 0 var(--spacing-sm);
+            }
+            .modal-content {
+                width: 95%;
+                padding: var(--spacing-md);
+            }
+            .season-header, .episode-item {
+                padding: var(--spacing-sm) var(--spacing-md);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading -->
+    <div class="loader" id="loading">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- Notifications container -->
+    <div id="notifications-container"></div>
+
+    <!-- Navigation -->
+    <nav class="nav-bar">
+        <button class="back-btn" onclick="history.back()">
+            <i class="material-icons">arrow_back</i>
+        </button>
+    </nav>
+
+    <!-- Hero -->
+    <section class="hero" id="hero">
+        <div class="hero-content">
+            <h1 class="hero-title" id="title">Cargando...</h1>
+            <div class="hero-meta">
+                <span id="year">—</span>
+                <span id="duration">—</span>
+                <span id="rating">—</span>
+                <span id="genre">—</span>
+            </div>
+            <div class="actions">
+                <button class="btn btn-primary" onclick="openModal()">
+                    <i class="material-icons">play_arrow</i>
+                    Reproducir
+                </button>
+                <button class="btn btn-secondary" onclick="toggleFavorite()">
+                    <i class="material-icons" id="favoriteIcon">add</i>
+                    <span id="favoriteText">Mi Lista</span>
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Synopsis -->
+    <div class="synopsis-container">
+        <p class="synopsis" id="synopsis">Cargando sinopsis...</p>
+        <button class="expand-btn" id="expandBtn" onclick="toggleSynopsis()">
+            Ver más
+            <i class="material-icons">expand_more</i>
+        </button>
+    </div>
+
+    <!-- Similar Series (Optional - can be populated if data available) -->
+    <div class="main-content">
+        <section>
+            <h2 class="section-title">Series similares</h2>
+            <div class="similar-grid" id="similar-grid">
+                <!-- Similar series will be populated here -->
+            </div>
+        </section>
+    </div>
+
+    <!-- Playback Modal (modified for episodes) -->
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Seleccionar Episodio</h3>
+                <button class="close-btn" onclick="closeModal()">×</button>
+            </div>
+            <div class="episode-list-container" id="episode-list-container">
+                <!-- Seasons and episodes will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Firebase config
+        const CONFIG = {
+            apiKey: "AIzaSyAEbMY3zYyxIjTREF-0kO-eK7soHAyy084",
+            authDomain: "web-de-peli.firebaseapp.com",
+            databaseURL: "https://web-de-peli-default-rtdb.firebaseio.com",
+            projectId: "web-de-peli",
+            storageBucket: "web-de-peli.firebasestorage.app",
+            messagingSenderId: "94710081234",
+            appId: "1:94710081234:web:4a106a5e25bd50e6c56f0b"
+        };
+
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+        import { getDatabase, ref, onValue } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
+
+        const app = initializeApp(CONFIG);
+        const db = getDatabase(app);
+
+        /* @tweakable Set debug level for console logs (0 = off, 1 = important, 2 = verbose) */
+        const debugLevel = 2; 
+
+        function debugLog(level, message, ...args) {
+            if (debugLevel >= level) {
+                console.log(`DEBUG (Level ${level}) - Series: ${message}`, ...args);
+            }
+        }
+
+        // Get series ID from URL
+        const params = new URLSearchParams(location.search);
+        const id = params.get('id');
+        debugLog(2, 'Received ID from URL:', id);
+        
+        if (!id) history.back();
+
+        let currentSeries = null;
+        let allContent = []; // Renamed from allMovies for clarity as it includes series
+
+        // --- Notifications function ---
+        /* @tweakable notification display duration */
+        function showNotification(message, type = 'default', duration = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--notification-duration'))) {
+            const container = document.getElementById('notifications-container');
+            if (!container) {
+                console.error('Notifications container not found!');
+                return;
+            }
+
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            if (type === 'success') {
+                notification.classList.add('notification--success');
+            } else if (type === 'error') {
+                notification.classList.add('notification--error');
+            }
+            notification.textContent = message;
+
+            container.appendChild(notification);
+
+            // Trigger reflow to ensure transition works for 'show' class
+            void notification.offsetWidth;
+
+            notification.classList.add('show');
+
+            setTimeout(() => {
+                notification.classList.remove('show');
+                // Remove the notification from DOM after transition ends
+                notification.addEventListener('transitionend', () => {
+                    notification.remove();
+                }, { once: true });
+            }, duration);
+        }
+
+        // Favorites
+        /* @tweakable local storage key for favorites */
+        const FAVORITES_STORAGE_KEY = 'cineflixter-favorites';
+        const getFavorites = () => JSON.parse(localStorage.getItem(FAVORITES_STORAGE_KEY) || '[]');
+        const setFavorites = arr => localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(arr));
+
+        // Load series data
+        onValue(ref(db, 'contenidos'), snap => {
+            try {
+                const data = snap.val();
+                if (!data) {
+                    showNotification('No se encontró contenido.', 'error');
+                    return;
+                }
+                
+                allContent = Object.keys(data).map(key => ({
+                    id: key,
+                    ...data[key]
+                }));
+                debugLog(2, 'All content fetched from Firebase:', allContent);
+
+                currentSeries = allContent.find(s => s.id === id);
+                debugLog(2, `Attempting to find series with ID '${id}'. Found series:`, currentSeries);
+                
+                if (!currentSeries) {
+                    showNotification('La serie no fue encontrada o el ID es incorrecto.', 'error');
+                    debugLog(1, `Series with ID '${id}' not found in fetched data.`);
+                    return;
+                }
+                
+                // Validate that the retrieved item is indeed a series
+                if (currentSeries.type && currentSeries.type !== 'series') {
+                    debugLog(1, `Warning: Item with ID '${id}' is of type '${currentSeries.type}' but expected 'series'. Displaying anyway.`);
+                    // Could also redirect to movies.html here if type mismatch is critical
+                    // window.location.href = `películas.html?id=${id}`;
+                    // return;
+                }
+
+                renderSeries(currentSeries);
+                renderSimilar(currentSeries);
+            } catch (error) {
+                console.error("Error al procesar los datos del contenido:", error);
+                showNotification('Error al procesar los datos del contenido.', 'error');
+            } finally {
+                // @tweakable delay before hiding loading screen (in ms)
+                // Useful for ensuring all rendering is complete, especially on slower devices.
+                setTimeout(() => {
+                    document.getElementById('loading').style.display = 'none';
+                }, 100); 
+            }
+        }, (error) => {
+            console.error("Error al cargar el contenido desde Firebase:", error);
+            showNotification('Error al cargar los datos del contenido.', 'error');
+            document.getElementById('loading').style.display = 'none'; // Ensure loader is hidden on Firebase error too
+        });
+
+        function renderSeries(series) {
+            document.title = series.title;
+            
+            // Hero background
+            const hero = document.getElementById('hero');
+            const bg = series.banner || series.poster;
+            hero.style.backgroundImage = `url(${bg})`;
+            
+            // Series info
+            document.getElementById('title').textContent = series.title;
+            document.getElementById('year').textContent = series.year || '—';
+            document.getElementById('duration').textContent = series.duration || '—';
+            document.getElementById('rating').textContent = series.rating || 'NR';
+            document.getElementById('genre').textContent = series.category || '—';
+            document.getElementById('synopsis').textContent = series.synopsis || 'Sin sinopsis disponible';
+            
+            // Update favorite button
+            updateFavoriteButton();
+        }
+
+        function renderSimilar(series) {
+            // Filter similar series by category, excluding the current series
+            const similar = allContent
+                .filter(c => c.id !== series.id && c.category === series.category && c.type === 'series')
+                .slice(0, 6); // Limit to 6 similar series for display
+            
+            debugLog(2, `Rendering similar series for category '${series.category}' and type '${series.type}':`, similar);
+
+            const grid = document.getElementById('similar-grid');
+            grid.innerHTML = '';
+
+            if (similar.length === 0) {
+                grid.innerHTML = '<p style="text-align: center; color: #bbb;">No hay contenido similar disponible.</p>';
+            } else {
+                similar.forEach(s => {
+                    const card = document.createElement('div');
+                    card.className = 'movie-card'; /* Reusing movie-card style */
+                    card.innerHTML = `
+                        <img src="${s.poster}" alt="${s.title}" loading="lazy">
+                    `;
+                    card.onclick = () => {
+                        const targetPage = s.type === 'series' ? 'series.html' : 'películas.html';
+                        debugLog(2, `Navigating from similar card: ${s.title} (Type: ${s.type}, ID: ${s.id}) to URL: ${targetPage}?id=${s.id}`); // Deep link to similar series
+                        window.location.href = `${targetPage}?id=${s.id}`;
+                    };
+                    grid.appendChild(card);
+                });
+            }
+        }
+
+        function toggleFavorite() {
+            if (!id) {
+                showNotification('Error: No se pudo identificar el contenido.', 'error');
+                debugLog(1, 'Error: No ID found for favorite toggle.');
+                return;
+            }
+
+            const favorites = getFavorites();
+            const index = favorites.indexOf(id);
+            
+            if (index > -1) {
+                favorites.splice(index, 1);
+                setFavorites(favorites);
+                showNotification('Eliminado de Mi Lista', 'default');
+                debugLog(2, `Removed ID '${id}' from favorites.`);
+            } else {
+                favorites.push(id);
+                setFavorites(favorites);
+                showNotification('Agregado a Mi Lista', 'success');
+                debugLog(2, `Added ID '${id}' to favorites.`);
+            }
+            
+            updateFavoriteButton();
+        }
+
+        function updateFavoriteButton() {
+            const favorites = getFavorites();
+            const isFavorite = favorites.includes(id);
+            
+            const icon = document.getElementById('favoriteIcon');
+            const text = document.getElementById('favoriteText');
+            
+            if (isFavorite) {
+                icon.textContent = 'check';
+                text.textContent = 'Quitar de mi lista';
+            } else {
+                icon.textContent = 'add';
+                text.textContent = 'Mi Lista';
+            }
+        }
+
+        function toggleSynopsis() {
+            const synopsis = document.getElementById('synopsis');
+            const btn = document.getElementById('expandBtn');
+            
+            if (synopsis.classList.contains('expanded')) {
+                synopsis.classList.remove('expanded');
+                btn.innerHTML = 'Ver más <i class="material-icons">expand_more</i>';
+            } else {
+                synopsis.classList.add('expanded');
+                btn.innerHTML = 'Ver menos <i class="material-icons">expand_less</i>';
+            }
+        }
+
+        function openModal() {
+            const modal = document.getElementById('modal');
+            const episodeListContainer = document.getElementById('episode-list-container');
+            episodeListContainer.innerHTML = ''; // Clear previous options
+            
+            if (!currentSeries || !currentSeries.seasons || currentSeries.seasons.length === 0) {
+                showNotification('No hay episodios disponibles para esta serie.', 'error');
+                debugLog(1, 'Error: No seasons found for current series or currentSeries is null.');
+                return;
+            }
+
+            currentSeries.seasons.forEach(season => {
+                const seasonContainer = document.createElement('div');
+                
+                const seasonHeader = document.createElement('div');
+                seasonHeader.className = 'season-header';
+                seasonHeader.innerHTML = `<i class="material-icons">chevron_right</i>Temporada ${season.season_number}`;
+                
+                const seasonBody = document.createElement('div');
+                seasonBody.className = 'season-body';
+                const episodeList = document.createElement('div'); // A container for actual episode links
+                episodeList.className = 'episode-list';
+                
+                season.episodes.forEach(episode => {
+                    const episodeLink = document.createElement('a');
+                    episodeLink.href = episode.src;
+                    episodeLink.target = "_blank";
+                    episodeLink.rel = "noopener noreferrer";
+                    episodeLink.className = 'episode-item';
+                    episodeLink.innerHTML = `
+                        <span class="episode-number">E${episode.episode_number}</span>
+                        <span class="episode-title">${episode.title}</span>
+                        <i class="material-icons play-icon">play_circle_outline</i>
+                    `;
+                    episodeList.appendChild(episodeLink);
+                });
+
+                seasonBody.appendChild(episodeList);
+                seasonContainer.appendChild(seasonHeader);
+                seasonContainer.appendChild(seasonBody);
+                episodeListContainer.appendChild(seasonContainer);
+
+                // Add click listener for collapsible behavior
+                seasonHeader.addEventListener('click', () => {
+                    seasonHeader.classList.toggle('active');
+                    if (seasonHeader.classList.contains('active')) {
+                        // Set max-height to scrollHeight to allow smooth expansion
+                        seasonBody.style.maxHeight = seasonBody.scrollHeight + "px"; 
+                    } else {
+                        seasonBody.style.maxHeight = "0"; // Collapse
+                    }
+                });
+            });
+
+            modal.classList.add('active');
+            debugLog(2, 'Opened episode selection modal for series:', currentSeries.title);
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('modal');
+            modal.classList.remove('active');
+            debugLog(2, 'Closed episode selection modal.');
+        }
+
+        // Close modal on outside click
+        document.getElementById('modal').addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal')) {
+                closeModal();
+            }
+        });
+
+        // Expose functions to the global scope for onclick attributes in HTML
+        window.openModal = openModal;
+        window.toggleFavorite = toggleFavorite;
+        window.toggleSynopsis = toggleSynopsis;
+        window.closeModal = closeModal;
+    </script>
+</body>
+</html>
