@@ -15,6 +15,12 @@ import android.net.Uri;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -136,7 +142,8 @@ public class MainActivity extends AppCompatActivity {
                     url.contains(".m3u") ||
                     url.contains("/hls/") ||
                     url.contains("manifest.mpd") ||
-                    url.contains(".ts"));
+                    url.contains(".ts") ||
+                    url.contains(".urlset/master.txt"));
         }
         
         private boolean isValidVideoUrl(String url) {
@@ -147,7 +154,8 @@ public class MainActivity extends AppCompatActivity {
                     url.contains(".m3u") ||
                     url.contains("/hls/") ||
                     url.contains("manifest.mpd") ||
-                    url.contains(".ts"));
+                    url.contains(".ts") ||
+                    url.contains(".urlset/master.txt"));
         }
         
         private void extractVideoFromEmbed(String embedCode) {

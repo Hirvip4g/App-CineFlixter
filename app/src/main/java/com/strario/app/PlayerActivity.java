@@ -6,6 +6,8 @@ import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.View;
 import android.widget.ImageButton;
 import android.widget.TextView;
@@ -23,12 +25,18 @@ import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.trackselection.MappingTrackSelector;
 import com.google.android.exoplayer2.Format;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 
@@ -43,6 +51,8 @@ public class PlayerActivity extends AppCompatActivity {
     private SharedPreferences sharedPreferences;
     private String videoUrl;
     private long resumePosition = C.TIME_UNSET;
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final Handler handler = new Handler(Looper.getMainLooper());
     
     // Method to extract a stable video ID from the URL
     private String getVideoId(String url) {
@@ -75,7 +85,49 @@ public class PlayerActivity extends AppCompatActivity {
         
         // Get video URL from intent
         videoUrl = getIntent().getStringExtra("VIDEO_URL");
+        
+        if (videoUrl != null && videoUrl.contains(".urlset/master.txt")) {
+            handleTxtPlaylist(videoUrl);
+        } else {
+            preparePlayer(videoUrl);
+        }
+    }
+    
+    private void handleTxtPlaylist(String txtUrl) {
+        executor.execute(() -> {
+            String m3u8Url = null;
+            try {
+                URL url = new URL(txtUrl);
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                connection.connect();
+                BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (line.trim().endsWith(".m3u8")) {
+                        m3u8Url = line.trim();
+                        break;
+                    }
+                }
+                reader.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
 
+            final String finalM3u8Url = m3u8Url;
+            handler.post(() -> {
+                if (finalM3u8Url != null) {
+                    preparePlayer(finalM3u8Url);
+                } else {
+                    Toast.makeText(this, "Could not find a valid video stream.", Toast.LENGTH_LONG).show();
+                    finish();
+                }
+            });
+        });
+    }
+    
+    private void preparePlayer(String url) {
+        this.videoUrl = url;
+        
         // Use a stable ID for the video to check for saved position
         String videoId = getVideoId(videoUrl);
         
@@ -302,6 +354,7 @@ public class PlayerActivity extends AppCompatActivity {
         if (exoPlayer != null) {
             exoPlayer.release();
         }
+        executor.shutdownNow();
     }
     
     @Override
