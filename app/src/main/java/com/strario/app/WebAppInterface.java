@@ -21,15 +21,17 @@ public class WebAppInterface {
         if (videoSent.getAndSet(true)) {
             return; // Video already sent
         }
+        // Accept .txt files as valid video URLs
         launchPlayer(url, title, description);
     }
 
     @JavascriptInterface
     public void detectVideo(String videoUrl) {
         Log.d("WebAppInterface", "Video detected via JS: " + videoUrl);
+        // Support .txt files that contain playlist data
         if (isValidVideoUrl(videoUrl)) {
              if (videoSent.getAndSet(true)) {
-                return; 
+                return; // Video already sent, do nothing.
             }
             launchPlayer(videoUrl, "Detected Video", "Auto-detected content");
         }
@@ -40,7 +42,11 @@ public class WebAppInterface {
     }
     
     public boolean isVideoUrl(String url) {
-        return url != null && (url.contains(".m3u8") || url.contains(".mp4"));
+        return url != null && 
+               (url.contains(".m3u8") || 
+                url.contains(".mp4") || 
+                url.contains(".txt") || // Add .txt support
+                url.contains(".urlset/master.txt")); // Add specific pattern
     }
 
     private boolean isValidVideoUrl(String url) {
@@ -51,7 +57,9 @@ public class WebAppInterface {
                 url.contains(".m3u") ||
                 url.contains("/hls/") ||
                 url.contains("manifest.mpd") ||
-                url.contains(".ts"));
+                url.contains(".ts") ||
+                url.contains(".urlset/master.txt") || // Add this
+                url.endsWith(".txt")); // Add this
     }
 
     private void launchPlayer(String url, String title, String description) {

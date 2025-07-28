@@ -112,7 +112,8 @@ public class MainActivity extends AppCompatActivity {
         @JavascriptInterface
         public void detectVideo(String videoUrl) {
             Log.d("WebAppInterface", "Video detected: " + videoUrl);
-            if (!jsVideoSent.get() && isValidVideoUrl(videoUrl)) {
+            // Accept .txt files that contain playlist data
+            if (!jsVideoSent.get() && (isValidVideoUrl(videoUrl) || videoUrl.contains(".txt"))) {
                 launchPlayer(videoUrl, "Detected Video", "Auto-detected streaming content");
                 jsVideoSent.set(true);
             }
@@ -146,7 +147,8 @@ public class MainActivity extends AppCompatActivity {
                     url.contains("/hls/") ||
                     url.contains("manifest.mpd") ||
                     url.contains(".ts") ||
-                    url.contains(".urlset/master.txt"));
+                    url.contains(".urlset/master.txt") || // Add this
+                    url.endsWith(".txt")); // Add this
         }
         
         private boolean isValidVideoUrl(String url) {
@@ -158,7 +160,8 @@ public class MainActivity extends AppCompatActivity {
                     url.contains("/hls/") ||
                     url.contains("manifest.mpd") ||
                     url.contains(".ts") ||
-                    url.contains(".urlset/master.txt"));
+                    url.contains(".urlset/master.txt") || // Add this
+                    url.endsWith(".txt")); // Add this
         }
         
         private void extractVideoFromEmbed(String embedCode) {
@@ -166,6 +169,7 @@ public class MainActivity extends AppCompatActivity {
             String[] patterns = {
                 "src=['\"]([^'\"]+\\.m3u8[^'\"]*)['\"]",
                 "src=['\"]([^'\"]+\\.mp4[^'\"]*)['\"]",
+                "src=['\"]([^'\"]+\\.txt[^'\"]*)['\"]", // Add .txt support
                 "data-video=['\"]([^'\"]+)['\"]",
                 "data-src=['\"]([^'\"]+)['\"]"
             };
