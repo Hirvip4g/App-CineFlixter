@@ -701,6 +701,12 @@
         const getFavorites = () => JSON.parse(localStorage.getItem(FAVORITES_STORAGE_KEY) || '[]');
         const setFavorites = arr => localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(arr));
 
+        // Watched Global Content
+        /* @tweakable Local storage key for watched movies and series (top level) */
+        const WATCHED_GLOBAL_STORAGE_KEY = 'cineflixter-watched-global';
+        const getWatchedGlobal = () => JSON.parse(localStorage.getItem(WATCHED_GLOBAL_STORAGE_KEY) || '[]');
+        const setWatchedGlobal = arr => localStorage.setItem(WATCHED_GLOBAL_STORAGE_KEY, JSON.stringify(arr));
+
         // Load movie data
         onValue(ref(db, 'contenidos'), snap => {
             const data = snap.val();
@@ -786,8 +792,8 @@
                     `;
                     card.onclick = () => {
                         const targetPage = m.type === 'series' ? 'series.html' : 'películas.html';
-                        debugLog(2, `Navigating from similar card: ${m.title} (Type: ${m.type}, ID: ${m.id}) to URL: ${targetPage}?id=${m.id}`);
-                        window.location.href = `${targetPage}?id=${m.id}`; // Ensure correct deep linking
+                        debugLog(2, `Navigating from similar card: ${m.title} (Type: ${m.type}, ID: ${m.id}) to URL: ${targetPage}?id=${m.id}`); // Ensure correct deep linking
+                        window.location.href = `${targetPage}?id=${m.id}`;
                     };
                     grid.appendChild(card);
                 });
@@ -848,6 +854,29 @@
             }
         }
 
+        /* @tweakable auto-mark movie as watched when played */
+        function playMovie(url) {
+            if (url) {
+                // Mark the movie as watched
+                let watchedGlobal = getWatchedGlobal();
+                if (!watchedGlobal.includes(currentMovie.id)) {
+                    watchedGlobal.push(currentMovie.id);
+                    setWatchedGlobal(watchedGlobal);
+                    showNotification('Contenido marcado como visto.', 'success');
+                    debugLog(2, `Added movie '${currentMovie.id}' to global watched list due to playback.`);
+                } else {
+                    debugLog(2, `Movie '${currentMovie.id}' already in global watched list.`);
+                }
+
+                debugLog(2, 'Attempting to play URL:', url);
+                window.open(url, '_blank');
+            } else {
+                showNotification('No se pudo iniciar la reproducción. URL no encontrada.', 'error');
+                debugLog(1, 'Error: Playback URL is empty.');
+            }
+            closeModal(); // Close modal after attempting to play
+        }
+
         function openModal() {
             const modal = document.getElementById('modal');
             const optionsContainer = document.getElementById('quality-options');
@@ -866,7 +895,7 @@
                     div.className = 'quality-option';
                     /* @tweakable default label for playback option if not provided */
                     div.textContent = option.label || `Opción ${index + 1}`; 
-                    div.onclick = () => play(option.src); // Pass only the URL
+                    div.onclick = () => playMovie(option.src); // Call playMovie
                     optionsContainer.appendChild(div);
                 });
                 modal.classList.add('active');
@@ -875,7 +904,7 @@
                 const div = document.createElement('div');
                 div.className = 'quality-option';
                 div.textContent = 'Ver ahora';
-                div.onclick = () => play(currentMovie.src); // Pass only the URL
+                div.onclick = () => playMovie(currentMovie.src); // Call playMovie
                 optionsContainer.appendChild(div);
                 modal.classList.add('active');
                 debugLog(2, 'Opened playback modal with direct source:', currentMovie.src);
@@ -892,17 +921,6 @@
             debugLog(2, 'Closed playback modal.');
         }
 
-        function play(url) {
-            if (url) {
-                debugLog(2, 'Attempting to play URL:', url);
-                window.open(url, '_blank');
-            } else {
-                showNotification('No se pudo iniciar la reproducción. URL no encontrada.', 'error');
-                debugLog(1, 'Error: Playback URL is empty.');
-            }
-            closeModal(); // Close modal after attempting to play
-        }
-
         // Close modal on outside click
         document.getElementById('modal').addEventListener('click', (e) => {
             if (e.target.classList.contains('modal')) {
@@ -915,7 +933,6 @@
         window.toggleFavorite = toggleFavorite;
         window.toggleSynopsis = toggleSynopsis;
         window.closeModal = closeModal;
-        window.play = play;
     </script>
 </body>
 </html>

@@ -63,6 +63,10 @@
             --modal-animation-duration: 0.3s;
             /* @tweakable notification duration in ms */
             --notification-duration: 3000ms;
+            /* @tweakable color for watched episodes */
+            --watched-color: #4CAF50; /* A shade of green */
+            /* @tweakable size of the watched/unwatched icon */
+            --watched-icon-size: 24px;
         }
 
         * {
@@ -468,6 +472,7 @@
 
         .episode-item {
             display: flex;
+            justify-content: space-between; /* Space out content and actions */
             align-items: center;
             gap: var(--spacing-md);
             color: #eeeeee;
@@ -487,21 +492,29 @@
         .episode-item:hover .play-icon {
             color: var(--brand-red);
         }
-        .episode-number {
-            color: #bdbdbd;
-            font-weight: 600;
-            font-size: 0.9em;
-            flex-shrink: 0;
+
+        .watched-toggle-icon {
+            font-size: var(--watched-icon-size);
+            color: #757575; /* Default color for unwatched */
+            cursor: pointer;
+            transition: color 0.3s ease;
         }
-        .episode-title {
-            flex-grow: 1;
-            color: #e0e0e0;
-            font-weight: 400;
+
+        .watched-toggle-icon:hover {
+            color: #a0a0a0;
         }
-        .play-icon {
-            color: #757575;
-            font-size: 28px;
-            transition: color 0.3s;
+
+        .episode-item.watched .watched-toggle-icon {
+            color: var(--watched-color);
+        }
+
+        .episode-item.watched .episode-number,
+        .episode-item.watched .episode-title {
+            color: #a0a0a0; /* Slightly dim watched episode text */
+        }
+
+        .episode-item.watched:hover {
+            background-color: rgba(76, 175, 80, 0.1); /* Lighter green background on hover for watched */
         }
 
         /* Notifications */
@@ -765,6 +778,81 @@
         const getFavorites = () => JSON.parse(localStorage.getItem(FAVORITES_STORAGE_KEY) || '[]');
         const setFavorites = arr => localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(arr));
 
+        // NEW: Watched Episodes
+        /* @tweakable Local storage key for watched episodes */
+        const WATCHED_EPISODES_STORAGE_KEY = 'cineflixter-watched-episodes';
+        /* @tweakable Local storage key for watched movies and series (top level) */
+        const WATCHED_GLOBAL_STORAGE_KEY = 'cineflixter-watched-global';
+
+        function getWatchedEpisodes() {
+            try {
+                const watched = localStorage.getItem(WATCHED_EPISODES_STORAGE_KEY);
+                return watched ? JSON.parse(watched) : [];
+            } catch (e) {
+                console.error("Error parsing watched episodes from localStorage:", e);
+                return [];
+            }
+        }
+
+        function setWatchedEpisodes(watchedArr) {
+            try {
+                localStorage.setItem(WATCHED_EPISODES_STORAGE_KEY, JSON.stringify(watchedArr));
+            } catch (e) {
+                console.error("Error saving watched episodes to localStorage:", e);
+            }
+        }
+
+        function getWatchedGlobal() {
+            try {
+                const watched = localStorage.getItem(WATCHED_GLOBAL_STORAGE_KEY);
+                return watched ? JSON.parse(watched) : [];
+            } catch (e) {
+                console.error("Error parsing global watched content from localStorage:", e);
+                return [];
+            }
+        }
+
+        function setWatchedGlobal(watchedArr) {
+            try {
+                localStorage.setItem(WATCHED_GLOBAL_STORAGE_KEY, JSON.stringify(watchedArr));
+            } catch (e) {
+                console.error("Error saving global watched content to localStorage:", e);
+            }
+        }
+
+        function isEpisodeWatched(episodeIdKey) {
+            const watched = getWatchedEpisodes();
+            return watched.includes(episodeIdKey);
+        }
+
+        function toggleWatched(episodeIdKey, episodeLinkElement, iconElement) {
+            let watchedEpisodes = getWatchedEpisodes();
+            let watchedGlobal = getWatchedGlobal();
+            const isCurrentlyWatched = watchedEpisodes.includes(episodeIdKey);
+
+            if (isCurrentlyWatched) {
+                watchedEpisodes = watchedEpisodes.filter(id => id !== episodeIdKey);
+                episodeLinkElement.classList.remove('watched');
+                iconElement.textContent = 'radio_button_unchecked';
+                showNotification('Episodio marcado como no visto.', 'default');
+                debugLog(2, `Marked episode '${episodeIdKey}' as unwatched.`);
+            } else {
+                watchedEpisodes.push(episodeIdKey);
+                episodeLinkElement.classList.add('watched');
+                iconElement.textContent = 'check_circle';
+                showNotification('Episodio marcado como visto.', 'success');
+                debugLog(2, `Marked episode '${episodeIdKey}' as watched.`);
+
+                // Mark the parent series as watched globally if it's not already
+                if (currentSeries && !watchedGlobal.includes(currentSeries.id)) {
+                    watchedGlobal.push(currentSeries.id);
+                    setWatchedGlobal(watchedGlobal);
+                    debugLog(2, `Added series '${currentSeries.id}' to global watched list.`);
+                }
+            }
+            setWatchedEpisodes(watchedEpisodes);
+        }
+
         // Load series data
         onValue(ref(db, 'contenidos'), snap => {
             try {
@@ -943,17 +1031,52 @@
                 episodeList.className = 'episode-list';
                 
                 season.episodes.forEach(episode => {
-                    const episodeLink = document.createElement('a');
-                    episodeLink.href = episode.src;
-                    episodeLink.target = "_blank";
-                    episodeLink.rel = "noopener noreferrer";
-                    episodeLink.className = 'episode-item';
-                    episodeLink.innerHTML = `
-                        <span class="episode-number">E${episode.episode_number}</span>
-                        <span class="episode-title">${episode.title}</span>
-                        <i class="material-icons play-icon">play_circle_outline</i>
+                    const episodeItem = document.createElement('div'); // Changed from <a> to <div>
+                    episodeItem.className = 'episode-item';
+                    
+                    // Generate a unique ID for each episode for tracking watched status
+                    const episodeIdKey = `${currentSeries.id}-${season.season_number}-${episode.episode_number}`;
+                    
+                    episodeItem.innerHTML = `
+                        <div class="episode-text">
+                            <span class="episode-number">E${episode.episode_number}</span>
+                            <span class="episode-title">${episode.title}</span>
+                        </div>
+                        <div class="episode-actions">
+                            <i class="material-icons watched-toggle-icon"></i>
+                            <i class="material-icons play-icon">play_circle_outline</i>
+                        </div>
                     `;
-                    episodeList.appendChild(episodeLink);
+                    
+                    const watchedToggleIcon = episodeItem.querySelector('.watched-toggle-icon');
+
+                    // Set initial watched state
+                    if (isEpisodeWatched(episodeIdKey)) {
+                        episodeItem.classList.add('watched');
+                        watchedToggleIcon.textContent = 'check_circle';
+                    } else {
+                        episodeItem.classList.remove('watched');
+                        watchedToggleIcon.textContent = 'radio_button_unchecked';
+                    }
+
+                    // Event listener for the entire episode item (for playback and auto-mark watched)
+                    /* @tweakable auto-mark episode as watched when played */
+                    episodeItem.addEventListener('click', (e) => {
+                        // If the clicked element or its parent is the watched-toggle-icon, only toggle watched status
+                        if (e.target.classList.contains('watched-toggle-icon') || e.target.closest('.watched-toggle-icon')) {
+                            toggleWatched(episodeIdKey, episodeItem, watchedToggleIcon);
+                            e.stopPropagation(); // Prevent the main episode item click from triggering
+                            return;
+                        }
+                        
+                        // Otherwise, mark as watched and play
+                        toggleWatched(episodeIdKey, episodeItem, watchedToggleIcon); // Mark as watched
+                        window.open(episode.src, '_blank'); // Open playback URL
+                        debugLog(2, `Playing episode '${episode.title}' (ID: ${episodeIdKey}) and marking as watched.`);
+                        closeModal(); // Close modal after playing
+                    });
+
+                    episodeList.appendChild(episodeItem);
                 });
 
                 seasonBody.appendChild(episodeList);

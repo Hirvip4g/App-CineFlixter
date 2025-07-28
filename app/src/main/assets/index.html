@@ -1091,7 +1091,7 @@
     <!-- Recently Added Section -->
     <div class="content-section">
         <div class="section-header">
-            <h2 class="section-title">Recién Agregadas</h2>
+            <h2 class="section-title">Estrenos del Año</h2>
             <button class="view-more-btn" id="view-more-recent">Ver Más</button>
         </div>
         <div class="horizontal-scroll" id="recent-movies">
@@ -1109,6 +1109,7 @@
             <a href="#" id="filter-favorites" class="side-menu-item"><i class="material-icons">favorite</i><span>Mis Favoritos</span></a>
             <a href="#" id="filter-movies" class="side-menu-item"><i class="material-icons">movie</i><span>Películas</span></a>
             <a href="#" id="filter-series" class="side-menu-item"><i class="material-icons">tv</i><span>Series</span></a>
+            <a href="#" id="filter-watched" class="side-menu-item"><i class="material-icons">visibility</i><span>Visto</span></a>
             <a href="https://t.me/+ho9D0p6Elu5hOGNh" class="side-menu-item"><i class="material-icons">telegram</i><span>Telegram</span></a>
             <a href="#" id="request-content-btn" class="side-menu-item"><i class="material-icons">add_comment</i><span>Solicitar Película/Serie</span></a>
         </div>
@@ -1158,13 +1159,20 @@
         /* @tweakable Set debug level for console logs (0 = off, 1 = important, 2 = verbose) */
         const debugLevel = 2; 
 
+        const topViewedContentIds = [
+            "ID_DE_PELICULA_O_SERIE_MAS_VISTA_1",
+            "ID_DE_PELICULA_O_SERIE_MAS_VISTA_2",
+            "ID_DE_PELICULA_O_SERIE_MAS_VISTA_3",
+            "ID_DE_PELICULA_O_SERIE_MAS_VISTA_4",
+            "ID_DE_PELICULA_O_SERIE_MAS_VISTA_5"
+        ];
+
         function debugLog(level, message, ...args) {
             if (debugLevel >= level) {
                 console.log(`DEBUG (Level ${level}): ${message}`, ...args);
             }
         }
 
-        /* @tweakable notification display duration */
         function showNotification(message, type = 'default', duration = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--notification-duration'))) {
             const container = document.getElementById('notifications-container');
             if (!container) {
@@ -1233,6 +1241,7 @@
             const filterMoviesBtn = document.getElementById("filter-movies");
             const filterSeriesBtn = document.getElementById("filter-series");
             const filterFavoritesBtn = document.getElementById("filter-favorites");
+            const filterWatchedBtn = document.getElementById("filter-watched"); /* @tweakable watched filter button */
             const heroPrevBtn = document.getElementById('hero-prev-btn');
             const heroNextBtn = document.getElementById('hero-next-btn');
             
@@ -1257,6 +1266,19 @@
             const searchOverlayBackBtn = document.querySelector('.search-overlay-back-btn');
             const searchOverlayResultsGrid = document.getElementById('search-overlay-results-grid');
 
+            /* @tweakable Local storage key for global watched content */
+            const WATCHED_GLOBAL_STORAGE_KEY = 'cineflixter-watched-global';
+
+            function getWatchedGlobal() {
+                try {
+                    const watched = localStorage.getItem(WATCHED_GLOBAL_STORAGE_KEY);
+                    return watched ? JSON.parse(watched) : [];
+                } catch (e) {
+                    console.error("Error parsing global watched content from localStorage:", e);
+                    return [];
+                }
+            }
+
             function createMovieCard(item) {
                 const card = document.createElement('div');
                 card.className = 'movie-card';
@@ -1266,7 +1288,6 @@
                         const targetPage = item.type === 'series' ? seriesPageBasePath : moviePageBasePath;
                         const url = item.id ? `${targetPage}?id=${item.id}` : targetPage;
                         
-                        /* @tweakable enable detailed logging for movie card clicks */
                         const logMovieCardClicks = true; 
                         if (logMovieCardClicks) {
                             debugLog(2, `[MOVIE CARD CLICK] Attempting navigation for: ${item.title} (ID: ${item.id}, Type: ${item.type}). Target URL: ${url}`);
@@ -1300,7 +1321,6 @@
                 slide.className = `hero-slide ${index === 0 ? 'active' : ''}`;
                 slide.style.backgroundImage = `url(${item.banner || item.poster})`;
                 
-                /* @tweakable enable detailed logging for hero slide links */
                 const logHeroSlideLinks = true; 
                 
                 slide.innerHTML = `
@@ -1314,9 +1334,7 @@
                     </div>
                 `;
                 
-                // Make the entire slide clickable to open all movies catalog
                 slide.addEventListener('click', () => {
-                    /* @tweakable Title for the catalog opened by clicking a hero slider item */
                     const heroSliderCatalogTitle = 'Todas las Películas';
                     debugLog(2, `[HERO SLIDER] Slide clicked for ${item.title}. Opening full catalog: ${heroSliderCatalogTitle}`);
                     openCategoryPage(heroSliderCatalogTitle, allContent.filter(contentItem => contentItem.type === 'movie'));
@@ -1490,26 +1508,37 @@
                 });
             }
 
-            const numberOfRecentMovies = 15;
-            /* @tweakable Reverse display order for "Recién Agregadas" section (true = oldest first, false = newest first) */
-            const reverseRecentMoviesDisplay = true;
+            const reverseYearReleasesDisplay = true;
 
-            function renderRecentMovies(sortedContent) { 
+            function renderYearReleases(content) { 
                 recentMoviesContainer.innerHTML = '';
                 
-                const itemsToDisplay = sortedContent.slice(0, numberOfRecentMovies);
-                if (reverseRecentMoviesDisplay) {
-                    itemsToDisplay.reverse();
-                    debugLog(2, `[RECENT MOVIES] Reversed display order for ${itemsToDisplay.length} recent movies.`);
+                let yearReleases = content.filter(item => parseInt(item.year) === currentYear);
+                if (yearReleases.length === 0) {
+                    yearReleases = content.filter(item => parseInt(item.year) === currentYear - 1);
+                    debugLog(2, `[ESTRENOS DEL AÑO] No releases found for ${currentYear}. Falling back to ${currentYear - 1} releases: ${yearReleases.length} items.`);
+                } else {
+                    debugLog(2, `[ESTRENOS DEL AÑO] Found ${yearReleases.length} releases for ${currentYear}.`);
                 }
-                debugLog(2, `[RECENT MOVIES] Rendering ${itemsToDisplay.length} out of ${sortedContent.length} recent movies.`);
-                itemsToDisplay.forEach(item => {
-                    recentMoviesContainer.appendChild(createMovieCard(item));
-                });
+
+                yearReleases.sort((a, b) => new Date(b.dateAdded || 0) - new Date(a.dateAdded || 0));
+                
+                if (reverseYearReleasesDisplay) {
+                    yearReleases.reverse();
+                    debugLog(2, `[ESTRENOS DEL AÑO] Reversed display order for ${yearReleases.length} releases.`);
+                }
+
+                if (yearReleases.length === 0) {
+                    recentMoviesContainer.innerHTML = '<p style="text-align: center; color: #bbb; width: 100%;">No hay estrenos disponibles para este año.</p>';
+                } else {
+                    debugLog(2, `[ESTRENOS DEL AÑO] Rendering ${yearReleases.length} year's releases.`);
+                    yearReleases.forEach(item => {
+                        recentMoviesContainer.appendChild(createMovieCard(item));
+                    });
+                }
             }
 
             const numberOfGenreMovies = 12;
-            /* @tweakable Reverse display order for genre sections (true = oldest first, false = newest first) */
             const reverseGenreMoviesDisplay = true;
 
             function renderGenreSections(content) {
@@ -1570,6 +1599,10 @@
                     const favorites = getFavorites();
                     filteredContent = allContent.filter(item => favorites.includes(item.id));
                     debugLog(2, `[FILTER] Filtered to ${filteredContent.length} favorites.`);
+                } else if (type === 'watched') { /* @tweakable watched content filter logic */
+                    const watched = getWatchedGlobal();
+                    filteredContent = allContent.filter(item => watched.includes(item.id));
+                    debugLog(2, `[FILTER] Filtered to ${filteredContent.length} watched items.`);
                 } else { 
                     debugLog(2, `[FILTER] Filter set to "all", displaying all ${filteredContent.length} items.`);
                 }
@@ -1582,27 +1615,55 @@
             }
 
             function updateUIWithContent(content) {
+                // Sort all content by dateAdded for general use (e.g., genre sections might still need it)
                 content.sort((a, b) => new Date(b.dateAdded || 0) - new Date(a.dateAdded || 0));
-                
-                const showMoviesOnlyInHero = true; 
 
-                const heroCandidates = content.filter(item => {
-                    const itemYear = parseInt(item.year);
-                    return (itemYear === currentYear || itemYear === currentYear - 1) && (!showMoviesOnlyInHero || item.type === 'movie');
+                let heroMovies = [];
+                const viewedMap = new Map(); 
+                topViewedContentIds.forEach(id => {
+                    const item = content.find(c => c.id === id);
+                    if (item) {
+                        viewedMap.set(id, item);
+                    }
                 });
-                const heroMovies = heroCandidates.slice(0, maxHeroSlides); 
-                
+
+                for (const id of topViewedContentIds) {
+                    if (viewedMap.has(id) && heroMovies.length < maxHeroSlides) {
+                        heroMovies.push(viewedMap.get(id));
+                    }
+                }
+
+                if (heroMovies.length < maxHeroSlides) {
+                    const remainingNeeded = maxHeroSlides - heroMovies.length;
+                    
+                    const recentCandidates = content.filter(item => {
+                        return !heroMovies.some(heroItem => heroItem.id === item.id);
+                    }).sort((a, b) => new Date(b.dateAdded || 0) - new Date(a.dateAdded || 0)); 
+                    
+                    let fillerItems = recentCandidates.filter(item => parseInt(item.year) === currentYear);
+                    if (fillerItems.length < remainingNeeded) {
+                        fillerItems = fillerItems.concat(recentCandidates.filter(item => parseInt(item.year) === currentYear - 1 && !fillerItems.includes(item)));
+                    }
+                    if (fillerItems.length < remainingNeeded) { 
+                        fillerItems = fillerItems.concat(recentCandidates.filter(item => !fillerItems.includes(item)));
+                    }
+
+                    fillerItems.slice(0, remainingNeeded).forEach(item => {
+                        if (heroMovies.length < maxHeroSlides) { 
+                            heroMovies.push(item);
+                        }
+                    });
+                }
+
                 if (heroMovies.length > 0) {
                     debugLog(2, '[HERO SLIDER] Hero movies selected for display:', heroMovies.map(m => m.title));
                     initHeroSlider(heroMovies);
                 } else {
-                    debugLog(1, '[HERO SLIDER] No recent movies found for hero slider. Attempting to select general movies.');
-                    const generalMovies = content.filter(item => item.type === 'movie').slice(0, maxHeroSlides);
-                    debugLog(2, '[HERO SLIDER] Fallback hero movies selected:', generalMovies.map(m => m.title));
-                    initHeroSlider(generalMovies);
+                    debugLog(1, '[HERO SLIDER] No movies found for hero slider based on "most viewed" or recent fallback. Hiding slider.');
+                    heroSlider.style.display = 'none';
                 }
                 
-                renderRecentMovies(content); 
+                renderYearReleases(content); 
                 
                 renderGenreSections(content);
             }
@@ -1666,7 +1727,6 @@
                     const data = snapshot.val();
                     let fetchedContent = data ? Object.keys(data).map(key => {
                         const item = { id: key, ...data[key] };
-                        /* @tweakable enable logging for fetched content IDs */
                         const logFetchedContentIDs = true;
                         if (logFetchedContentIDs) {
                             debugLog(2, `[FETCH DATA] Fetched item: ID=${item.id}, Title=${item.title}, Type=${item.type}`);
@@ -1675,16 +1735,14 @@
                     }) : [];
                     debugLog(2, 'Fetched all content from Firebase. Total items:', fetchedContent.length);
                     
-                    // Filter out items without a valid ID early
                     const validContent = fetchedContent.filter(item => item.id && item.id.length > 0);
                     if (fetchedContent.length !== validContent.length) {
                         debugLog(1, `WARNING: Filtered out ${fetchedContent.length - validContent.length} items due to missing/invalid IDs.`);
                     }
-                    allContent = validContent; // Use only valid content for rendering
-                    debugLog(1, `[FETCH DATA] All valid content loaded. Total items: ${allContent.length}`);
-                    
-                    // Initial render of main page sections with all content
-                    updateUIWithContent(allContent);
+                    allContent = validContent; 
+                    if (allContent.length > 0) {
+                        updateUIWithContent(allContent);
+                    }
                     
                 }, (error) => {
                     console.error("Error al cargar el contenido desde Firebase:", error);
@@ -1699,9 +1757,6 @@
                 if (query.length > 0) {
                     let searchContent = allContent;
                     
-                    // Search should still respect the current filter set by the menu (if a category overlay is open)
-                    // However, if the search overlay is open, the main content is hidden, so currentFilter here refers to
-                    // the last applied global filter, which is correct for search context.
                     if (currentFilter === 'movies') {
                         searchContent = allContent.filter(item => item.type === 'movie');
                     } else if (currentFilter === 'series') {
@@ -1709,6 +1764,9 @@
                     } else if (currentFilter === 'favorites') {
                         const favorites = getFavorites();
                         searchContent = allContent.filter(item => favorites.includes(item.id));
+                    } else if (currentFilter === 'watched') { /* @tweakable search filter for watched content */
+                        const watched = getWatchedGlobal();
+                        searchContent = allContent.filter(item => watched.includes(item.id));
                     }
                     
                     const filtered = searchContent.filter(item => 
@@ -1737,24 +1795,34 @@
             overlay.addEventListener("click", () => {
                 sideMenu.classList.remove("active");
                 overlay.classList.remove("active");
-                closeRequestModal(); // Close request modal if open
+                closeRequestModal(); 
             });
 
             document.getElementById('view-more-recent').onclick = (e) => {
                 e.preventDefault();
-                debugLog(2, `[VIEW MORE] "Recién Agregadas" clicked.`);
+                debugLog(2, `[VIEW MORE] "Estrenos del Año" clicked.`);
                 
-                let recentContentForViewMore = allContent;
+                let contentForViewMore = allContent;
                 if (currentFilter === 'movies') {
-                    recentContentForViewMore = allContent.filter(item => item.type === 'movie');
+                    contentForViewMore = allContent.filter(item => item.type === 'movie');
                 } else if (currentFilter === 'series') {
-                    recentContentForViewMore = allContent.filter(item => item.type === 'series');
+                    contentForViewMore = allContent.filter(item => item.type === 'series');
                 } else if (currentFilter === 'favorites') {
                     const favorites = getFavorites();
-                    recentContentForViewMore = allContent.filter(item => favorites.includes(item.id));
+                    contentForViewMore = allContent.filter(item => favorites.includes(item.id));
+                } else if (currentFilter === 'watched') { /* @tweakable view more for watched content */
+                    const watched = getWatchedGlobal();
+                    contentForViewMore = allContent.filter(item => watched.includes(item.id));
                 }
-                debugLog(2, `[VIEW MORE] "Recién Agregadas" filter resulted in ${recentContentForViewMore.length} items.`);
-                openCategoryPage('Recién Agregadas', recentContentForViewMore);
+
+                let yearReleasesForViewMore = contentForViewMore.filter(item => parseInt(item.year) === currentYear);
+                if (yearReleasesForViewMore.length === 0) {
+                    yearReleasesForViewMore = contentForViewMore.filter(item => parseInt(item.year) === currentYear - 1);
+                }
+
+                debugLog(2, `[VIEW MORE] "Estrenos del Año" filter resulted in ${yearReleasesForViewMore.length} items.`);
+                const yearReleasesCatalogTitle = `Estrenos del Año ${currentYear}`;
+                openCategoryPage(yearReleasesCatalogTitle, yearReleasesForViewMore);
             };
             
             heroSlider.addEventListener('touchstart', e => {
@@ -1780,12 +1848,12 @@
             heroNextBtn.addEventListener('click', nextSlide);
             
             function openRequestModal() {
-                requestModal.classList.add('active'); // Use class to toggle display and animation
+                requestModal.classList.add('active'); 
                 overlay.classList.add('active');
             }
 
             function closeRequestModal() {
-                requestModal.classList.remove('active'); // Use class to toggle display and animation
+                requestModal.classList.remove('active'); 
                 if (!sideMenu.classList.contains('active')) {
                     overlay.classList.remove('active');
                 }
@@ -1800,20 +1868,18 @@
 
             requestModalClose.addEventListener('click', closeRequestModal);
             
-            // Modified behavior for filter buttons to open category page
             filterAllBtn.addEventListener("click", e => { 
                 e.preventDefault(); 
-                currentFilter = 'all'; // Reset filter to 'all' for main page content
-                closeCategoryPage(); // Ensure any open category overlay is closed
-                updateUIWithContent(allContent); // Re-render main sections with all content
+                currentFilter = 'all'; 
+                closeCategoryPage(); 
+                updateUIWithContent(allContent); 
                 sideMenu.classList.remove("active"); 
                 overlay.classList.remove("active"); 
             });
             
             filterMoviesBtn.addEventListener("click", e => { 
                 e.preventDefault(); 
-                currentFilter = 'movies'; // Update filter for potential search
-                /* @tweakable Title for the catalog opened by clicking "Películas" in the menu */
+                currentFilter = 'movies'; 
                 const moviesCatalogTitle = 'Películas';
                 openCategoryPage(moviesCatalogTitle, allContent.filter(item => item.type === 'movie')); 
                 sideMenu.classList.remove("active"); 
@@ -1822,8 +1888,7 @@
             
             filterSeriesBtn.addEventListener("click", e => { 
                 e.preventDefault(); 
-                currentFilter = 'series'; // Update filter for potential search
-                /* @tweakable Title for the catalog opened by clicking "Series" in the menu */
+                currentFilter = 'series'; 
                 const seriesCatalogTitle = 'Series';
                 openCategoryPage(seriesCatalogTitle, allContent.filter(item => item.type === 'series')); 
                 sideMenu.classList.remove("active"); 
@@ -1832,11 +1897,20 @@
             
             filterFavoritesBtn.addEventListener("click", e => { 
                 e.preventDefault(); 
-                currentFilter = 'favorites'; // Update filter for potential search
+                currentFilter = 'favorites'; 
                 const favorites = getFavorites();
                 openCategoryPage('Mis Favoritos', allContent.filter(item => favorites.includes(item.id))); 
                 sideMenu.classList.remove("active"); 
                 overlay.classList.remove("active"); 
+            });
+
+            filterWatchedBtn.addEventListener("click", e => { /* @tweakable event listener for watched filter */
+                e.preventDefault();
+                currentFilter = 'watched';
+                const watched = getWatchedGlobal();
+                openCategoryPage('Mi Contenido Visto', allContent.filter(item => watched.includes(item.id)));
+                sideMenu.classList.remove("active");
+                overlay.classList.remove("active");
             });
             
             requestForm.addEventListener('submit', async (e) => {
