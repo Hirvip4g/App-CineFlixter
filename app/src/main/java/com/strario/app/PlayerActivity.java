@@ -24,6 +24,8 @@ import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.trackselection.MappingTrackSelector;
 import com.google.android.exoplayer2.Format;
+import com.google.android.exoplayer2.trackselection.DefaultTrackSelector.SelectionOverride;
+import com.google.android.exoplayer2.trackselection.MappingTrackSelector.MappedTrackInfo;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -250,7 +252,7 @@ public class PlayerActivity extends AppCompatActivity {
     }
 
     private void selectSpanishAudio() {
-        MappingTrackSelector.MappedTrackInfo mappedTrackInfo = trackSelector.getCurrentMappedTrackInfo();
+        MappedTrackInfo mappedTrackInfo = trackSelector.getCurrentMappedTrackInfo();
         if (mappedTrackInfo == null) return;
         
         for (int i = 0; i < mappedTrackInfo.getRendererCount(); i++) {
@@ -261,7 +263,7 @@ public class PlayerActivity extends AppCompatActivity {
                         if ("es".equalsIgnoreCase(format.language)) {
                             DefaultTrackSelector.Parameters.Builder parametersBuilder = trackSelector.buildUponParameters();
                             parametersBuilder.setSelectionOverride(i, mappedTrackInfo.getTrackGroups(i), 
-                                new DefaultTrackSelector.SelectionOverride(j, k));
+                                new SelectionOverride(j, k));
                             trackSelector.setParameters(parametersBuilder.build());
                             return;
                         }
