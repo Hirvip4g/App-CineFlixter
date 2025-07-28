@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.Strario" parent="Theme.AppCompat.Light.NoActionBar">
+    <style name="Theme.CineFlixter" parent="Theme.AppCompat.Light.NoActionBar">
         <item name="android:windowBackground">#0a0a0a</item>
-        <item name="android:colorPrimary">#000</item>
-        <item name="android:colorPrimaryDark">#000</item>
-        <item name="android:colorAccent">#000</item>
+        <item name="android:colorPrimary">#667eea</item>
+        <item name="android:colorPrimaryDark">#2a5298</item>
+        <item name="android:colorAccent">#667eea</item>
     </style>
 
-    <style name="Theme.Strario.NoActionBar">
+    <style name="Theme.CineFlixter.NoActionBar">
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
     </style>
@@ -16,7 +16,7 @@
         <item name="android:background">#1a1a1a</item>
         <item name="android:textColor">#ffffff</item>
         <item name="android:textColorPrimary">#ffffff</item>
-        <item name="android:colorAccent">#000</item>
+        <item name="android:colorAccent">#667eea</item>
         <item name="android:windowBackground">@drawable/dialog_background</item>
         <item name="android:windowTitleStyle">@style/DialogTitleText</item>
         <item name="android:windowContentOverlay">@null</item>
@@ -31,4 +31,3 @@
         <item name="android:gravity">center</item>
     </style>
 </resources>
-
