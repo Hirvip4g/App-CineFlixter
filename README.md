@@ -1,2 +1,3 @@
 // Cambio mínimo
 // trigger
+// trigger
