@@ -96,81 +96,31 @@ public class PlayerActivity extends AppCompatActivity {
     }
     
     private void handleTxtPlaylist(String txtUrl) {
-        executor.execute(() -> {
-            String m3u8Url = null;
-            try {
-                // Get base URL for resolving relative paths
-                String baseUrl = txtUrl.substring(0, txtUrl.lastIndexOf('/') + 1);
-
-                URL url = new URL(txtUrl);
-                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-                // Set a user agent as some servers require it
-                connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36");
-                connection.setRequestProperty("Accept", "*/*");
-                connection.setRequestProperty("Accept-Language", "es-ES,es;q=0.9,en;q=0.8");
-                connection.setConnectTimeout(10000);
-                connection.setReadTimeout(10000);
-                connection.connect();
-                
-                BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-                StringBuilder content = new StringBuilder();
-                String line;
-                
-                // Read the entire content first
-                while ((line = reader.readLine()) != null) {
-                    content.append(line).append("\n");
-                }
-                reader.close();
-                
-                // Check if it's actually an M3U8 playlist
-                String fullContent = content.toString();
-                if (fullContent.contains("#EXTM3U") || fullContent.contains(".m3u8")) {
-                    // This is actually an M3U8 playlist disguised as .txt
-                    m3u8Url = txtUrl;
-                } else {
-                    // Look for actual M3U8 URLs within the content
-                    String[] lines = fullContent.split("\n");
-                    for (String contentLine : lines) {
-                        contentLine = contentLine.trim();
-                        if (contentLine.contains(".m3u8") || contentLine.contains("master.m3u8")) {
-                            if (contentLine.startsWith("http")) {
-                                m3u8Url = contentLine;
-                            } else {
-                                m3u8Url = baseUrl + contentLine;
-                            }
-                            break;
-                        }
-                    }
-                    
-                    // If no specific M3U8 URL found, try the base URL
-                    if (m3u8Url == null) {
-                        // Try replacing .txt with .m3u8
-                        String modifiedUrl = txtUrl.replace(".txt", ".m3u8");
-                        if (isValidM3U8(modifiedUrl)) {
-                            m3u8Url = modifiedUrl;
-                        } else {
-                            // Use the original .txt URL as is - ExoPlayer might handle it
-                            m3u8Url = txtUrl;
-                        }
-                    }
-                }
-                
-            } catch (Exception e) {
-                e.printStackTrace();
-                // Fallback: try using the original URL
-                m3u8Url = txtUrl;
-            }
-
-            final String finalM3u8Url = m3u8Url;
-            handler.post(() -> {
-                if (finalM3u8Url != null) {
-                    preparePlayer(finalM3u8Url);
-                } else {
-                    Toast.makeText(this, "Could not find a valid video stream.", Toast.LENGTH_LONG).show();
-                    finish();
-                }
-            });
-        });
+        // For .txt files, use them directly - they contain M3U8 content
+        // ExoPlayer can handle M3U8 content even if the extension is .txt
+        String videoId = getVideoId(txtUrl);
+        long savedPosition = sharedPreferences.getLong(videoId, C.TIME_UNSET);
+        
+        this.videoUrl = txtUrl;
+        
+        if (savedPosition > 1000) {
+            new AlertDialog.Builder(this, R.style.CustomDialogTheme)
+                .setTitle("Reanudar reproducción")
+                .setMessage("¿Quieres continuar donde lo dejaste?")
+                .setPositiveButton("Reanudar", (dialog, which) -> {
+                    resumePosition = savedPosition;
+                    startPlayer();
+                })
+                .setNegativeButton("Empezar de nuevo", (dialog, which) -> {
+                    clearPlaybackPosition();
+                    resumePosition = C.TIME_UNSET;
+                    startPlayer();
+                })
+                .setCancelable(false)
+                .show();
+        } else {
+            startPlayer();
+        }
     }
     
     private boolean isValidM3U8(String url) {
@@ -189,9 +139,10 @@ public class PlayerActivity extends AppCompatActivity {
     private void preparePlayer(String url) {
         this.videoUrl = url;
         
-        // Handle .txt playlists that contain .m3u8 content
+        // Handle .txt files directly as video streams
         if (url != null && (url.endsWith(".txt") || url.contains(".urlset/master.txt"))) {
-            handleTxtPlaylist(url);
+            // Skip the resume dialog for .txt files and play directly
+            startPlayer();
             return;
         }
         

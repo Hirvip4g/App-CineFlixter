@@ -69,11 +69,7 @@ public class MainActivity extends AppCompatActivity {
                 
                 // Let the WebAppInterface handle video detection from network requests
                 if (webAppInterface.isVideoUrl(url)) {
-                    // Pass it to the JS interface to avoid race conditions with user clicks
-                    // The JS interface can decide whether to play it or not.
                     runOnUiThread(() -> view.loadUrl("javascript:AndroidInterface.detectVideo('" + url + "');"));
-                    // Let the request continue, in case the web UI needs it.
-                    // The player will handle opening the video separately.
                 }
                 
                 return super.shouldInterceptRequest(view, request);
@@ -102,55 +98,52 @@ public class MainActivity extends AppCompatActivity {
     
     // JavaScript interface for video detection
     public class WebAppInterface {
-        private AtomicBoolean jsVideoSent = new AtomicBoolean(false);
         private Context context;
-        
+        private AtomicBoolean videoSent = new AtomicBoolean(false);
+
         WebAppInterface(Context context) {
             this.context = context;
         }
-        
-        @JavascriptInterface
-        public void detectVideo(String videoUrl) {
-            Log.d("WebAppInterface", "Video detected: " + videoUrl);
-            // Accept .txt files that contain playlist data
-            if (!jsVideoSent.get() && (isValidVideoUrl(videoUrl) || videoUrl.contains(".txt"))) {
-                launchPlayer(videoUrl, "Detected Video", "Auto-detected streaming content");
-                jsVideoSent.set(true);
-            }
-        }
-        
+
         @JavascriptInterface
         public void playVideo(String url, String title, String description) {
-            if (!jsVideoSent.get()) {
-                launchPlayer(url, title, description);
-                jsVideoSent.set(true);
+            if (videoSent.getAndSet(true)) {
+                return; // Video already sent
+            }
+            launchPlayer(url, title, description);
+        }
+
+        @JavascriptInterface
+        public void detectVideo(String videoUrl) {
+            Log.d("WebAppInterface", "Video detected via JS: " + videoUrl);
+            // Accept .txt files as valid video URLs
+            if (isValidVideoUrl(videoUrl)) {
+                 if (videoSent.getAndSet(true)) {
+                    return; // Video already sent, do nothing.
+                }
+                launchPlayer(videoUrl, "Detected Video", "Auto-detected content");
             }
         }
-        
+
         @JavascriptInterface
         public void extractFromEmbed(String embedCode) {
-            if (!jsVideoSent.get()) {
+            if (!videoSent.get()) {
                 extractVideoFromEmbed(embedCode);
             }
         }
-        
+
         public void resetVideoSentFlag() {
-            jsVideoSent.set(false);
+            videoSent.set(false);
         }
         
         public boolean isVideoUrl(String url) {
             return url != null && 
-                   (url.startsWith("http") || url.startsWith("https")) && 
                    (url.contains(".m3u8") || 
                     url.contains(".mp4") || 
-                    url.contains(".m3u") ||
-                    url.contains("/hls/") ||
-                    url.contains("manifest.mpd") ||
-                    url.contains(".ts") ||
-                    url.contains(".urlset/master.txt") || // Add this
-                    url.endsWith(".txt")); // Add this
+                    url.contains(".txt") || // Keep .txt support
+                    url.contains(".urlset/master.txt")); // Keep specific pattern
         }
-        
+
         private boolean isValidVideoUrl(String url) {
             return url != null &&
                    (url.startsWith("http") || url.startsWith("https")) &&
@@ -160,10 +153,10 @@ public class MainActivity extends AppCompatActivity {
                     url.contains("/hls/") ||
                     url.contains("manifest.mpd") ||
                     url.contains(".ts") ||
-                    url.contains(".urlset/master.txt") || // Add this
-                    url.endsWith(".txt")); // Add this
+                    url.contains(".urlset/master.txt") || // Keep this
+                    url.endsWith(".txt")); // Keep .txt support
         }
-        
+
         private void extractVideoFromEmbed(String embedCode) {
             // Extract video URLs from common embed patterns
             String[] patterns = {
@@ -189,14 +182,12 @@ public class MainActivity extends AppCompatActivity {
         
         private void launchPlayer(String url, String title, String description) {
             if (url == null || url.isEmpty()) return;
-            
-            ((MainActivity) context).runOnUiThread(() -> {
-                Intent intent = new Intent(context, PlayerActivity.class);
-                intent.putExtra("VIDEO_URL", url);
-                intent.putExtra("VIDEO_TITLE", title);
-                intent.putExtra("VIDEO_DESCRIPTION", description);
-                context.startActivity(intent);
-            });
+
+            Intent intent = new Intent(context, PlayerActivity.class);
+            intent.putExtra("VIDEO_URL", url);
+            intent.putExtra("VIDEO_TITLE", title);
+            intent.putExtra("VIDEO_DESCRIPTION", description);
+            context.startActivity(intent);
         }
     }
 }
