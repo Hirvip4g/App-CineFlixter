@@ -1,4 +1,4 @@
-package com.strario.app;
+package com.cineflixter.app;
 
 import android.content.Context;
 import android.content.Intent;
@@ -63,7 +63,7 @@ public class MainActivity extends AppCompatActivity {
                 
                 // Let the WebAppInterface handle video detection
                 if (webAppInterface.isVideoUrl(url)) {
-                    webAppInterface.playVideo(url, "CineFlixter", "Streaming content");
+                    webAppInterface.playVideo(url, "Video", "Streaming content");
                     return new WebResourceResponse(null, null, null); // Block request
                 }
                 

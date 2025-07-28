@@ -1,4 +1,4 @@
-package com.strario.app;
+package com.cineflixter.app;
 
 import android.content.Context;
 import android.content.Intent;
@@ -64,4 +64,3 @@ public class WebAppInterface {
         context.startActivity(intent);
     }
 }
-

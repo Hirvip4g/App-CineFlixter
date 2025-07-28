@@ -1,4 +1,4 @@
-package com.strario.app;
+package com.cineflixter.app;
 
 import android.animation.ObjectAnimator;
 import android.content.Intent;
