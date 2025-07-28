@@ -67,10 +67,13 @@ public class MainActivity extends AppCompatActivity {
             public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
                 String url = request.getUrl().toString();
                 
-                // Let the WebAppInterface handle video detection
+                // Let the WebAppInterface handle video detection from network requests
                 if (webAppInterface.isVideoUrl(url)) {
-                    webAppInterface.playVideo(url, "Video", "Streaming content");
-                    return new WebResourceResponse(null, null, null); // Block request
+                    // Pass it to the JS interface to avoid race conditions with user clicks
+                    // The JS interface can decide whether to play it or not.
+                    runOnUiThread(() -> view.loadUrl("javascript:AndroidInterface.detectVideo('" + url + "');"));
+                    // Let the request continue, in case the web UI needs it.
+                    // The player will handle opening the video separately.
                 }
                 
                 return super.shouldInterceptRequest(view, request);

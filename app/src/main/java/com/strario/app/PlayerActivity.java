@@ -97,15 +97,26 @@ public class PlayerActivity extends AppCompatActivity {
         executor.execute(() -> {
             String m3u8Url = null;
             try {
+                // Get base URL for resolving relative paths
+                String baseUrl = txtUrl.substring(0, txtUrl.lastIndexOf('/') + 1);
+
                 URL url = new URL(txtUrl);
                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                // Set a user agent as some servers require it
+                connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36");
                 connection.connect();
                 BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
                 String line;
                 while ((line = reader.readLine()) != null) {
-                    if (line.trim().endsWith(".m3u8")) {
-                        m3u8Url = line.trim();
-                        break;
+                    line = line.trim();
+                    if (line.endsWith(".m3u8")) {
+                        // Check if the line is a full URL or a relative path
+                        if (line.startsWith("http")) {
+                            m3u8Url = line;
+                        } else {
+                            m3u8Url = baseUrl + line;
+                        }
+                        break; // Found the m3u8 file
                     }
                 }
                 reader.close();
