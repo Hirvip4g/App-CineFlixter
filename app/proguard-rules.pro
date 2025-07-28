@@ -1,9 +1,9 @@
 # Keep ExoPlayer classes
 -keep class com.google.android.exoplayer2.** { *; }
--keep class com.strario.app.** { *; }
+-keep class com.cineflixter.app.** { *; }
 
 # WebView JavaScript interface
--keepclassmembers class com.strario.app.WebAppInterface {
+-keepclassmembers class com.cineflixter.app.WebAppInterface {
     public *;
 }
 
