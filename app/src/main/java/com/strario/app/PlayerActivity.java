@@ -29,6 +29,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
 
 public class PlayerActivity extends AppCompatActivity {
     
@@ -42,6 +44,21 @@ public class PlayerActivity extends AppCompatActivity {
     private String videoUrl;
     private long resumePosition = C.TIME_UNSET;
     
+    // Method to extract a stable video ID from the URL
+    private String getVideoId(String url) {
+        if (url == null) {
+            return null;
+        }
+        // Pattern to find the numeric ID before "/master.m3u8"
+        Pattern pattern = Pattern.compile("(\\d+)/master\\.m3u8");
+        Matcher matcher = pattern.matcher(url);
+        if (matcher.find()) {
+            return matcher.group(1); // Return the captured numeric ID
+        }
+        // Fallback to using the full URL if the pattern doesn't match
+        return url;
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -59,8 +76,11 @@ public class PlayerActivity extends AppCompatActivity {
         // Get video URL from intent
         videoUrl = getIntent().getStringExtra("VIDEO_URL");
 
-        // Check for a saved position
-        long savedPosition = sharedPreferences.getLong(videoUrl, C.TIME_UNSET);
+        // Use a stable ID for the video to check for saved position
+        String videoId = getVideoId(videoUrl);
+        
+        // Check for a saved position using the stable ID
+        long savedPosition = sharedPreferences.getLong(videoId, C.TIME_UNSET);
         
         // If there's a significant saved position, ask the user to resume
         if (savedPosition > 1000) { // More than 1 second
@@ -242,11 +262,12 @@ public class PlayerActivity extends AppCompatActivity {
         if (exoPlayer != null && videoUrl != null) {
             long currentPosition = exoPlayer.getCurrentPosition();
             long duration = exoPlayer.getDuration();
+            String videoId = getVideoId(videoUrl);
             
             // Don't save if position is invalid or video is almost finished (e.g., 95%)
             if (currentPosition > 0 && (duration == C.TIME_UNSET || currentPosition < duration * 0.95)) {
                 SharedPreferences.Editor editor = sharedPreferences.edit();
-                editor.putLong(videoUrl, currentPosition);
+                editor.putLong(videoId, currentPosition);
                 editor.apply();
             } else {
                 // If video is finished or position is invalid, clear the saved position
@@ -257,8 +278,9 @@ public class PlayerActivity extends AppCompatActivity {
 
     private void clearPlaybackPosition() {
         if (videoUrl != null) {
+            String videoId = getVideoId(videoUrl);
             SharedPreferences.Editor editor = sharedPreferences.edit();
-            editor.remove(videoUrl);
+            editor.remove(videoId);
             editor.apply();
         }
     }
