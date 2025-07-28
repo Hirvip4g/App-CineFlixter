@@ -1,5 +1,7 @@
 package com.strario.app;
 
+import android.app.AlertDialog;
+import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
 import android.net.Uri;
@@ -36,6 +38,9 @@ public class PlayerActivity extends AppCompatActivity {
     private ImageButton settingsButton;
     private boolean isFullscreen = false;
     private DefaultTrackSelector trackSelector;
+    private SharedPreferences sharedPreferences;
+    private String videoUrl;
+    private long resumePosition = C.TIME_UNSET;
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,9 +50,43 @@ public class PlayerActivity extends AppCompatActivity {
         // Hide system bars for immersive experience
         hideSystemBars();
         
+        // Initialize SharedPreferences for playback positions
+        sharedPreferences = getSharedPreferences("PlaybackPositions", MODE_PRIVATE);
+
         // Initialize PlayerView
         playerView = findViewById(R.id.playerView);
         
+        // Get video URL from intent
+        videoUrl = getIntent().getStringExtra("VIDEO_URL");
+
+        // Check for a saved position
+        long savedPosition = sharedPreferences.getLong(videoUrl, C.TIME_UNSET);
+        
+        // If there's a significant saved position, ask the user to resume
+        if (savedPosition > 1000) { // More than 1 second
+            new AlertDialog.Builder(this, R.style.CustomDialogTheme)
+                .setTitle("Reanudar reproducción")
+                .setMessage("¿Quieres continuar donde lo dejaste?")
+                .setPositiveButton("Reanudar", (dialog, which) -> {
+                    resumePosition = savedPosition;
+                    startPlayer();
+                })
+                .setNegativeButton("Empezar de nuevo", (dialog, which) -> {
+                    clearPlaybackPosition();
+                    resumePosition = C.TIME_UNSET;
+                    startPlayer();
+                })
+                .setCancelable(false)
+                .show();
+        } else {
+            // No saved position, or it's negligible, so start from the beginning
+            startPlayer();
+        }
+    }
+    
+    private void startPlayer() {
+        String title = getIntent().getStringExtra("VIDEO_TITLE");
+
         // Initialize ExoPlayer with DefaultTrackSelector for quality/audio selection
         trackSelector = new DefaultTrackSelector(this);
         trackSelector.setParameters(trackSelector
@@ -57,10 +96,6 @@ public class PlayerActivity extends AppCompatActivity {
             .setForceHighestSupportedBitrate(true));
         exoPlayer = new ExoPlayer.Builder(this).setTrackSelector(trackSelector).build();
         playerView.setPlayer(exoPlayer);
-        
-        // Get video URL from intent
-        String videoUrl = getIntent().getStringExtra("VIDEO_URL");
-        String title = getIntent().getStringExtra("VIDEO_TITLE");
         
         // Find custom controls
         ImageButton backButton = playerView.findViewById(R.id.exo_back_button);
@@ -91,7 +126,6 @@ public class PlayerActivity extends AppCompatActivity {
                 if (exoPlayer != null) {
                     boolean playing = exoPlayer.getPlayWhenReady();
                     exoPlayer.setPlayWhenReady(!playing);
-                    updatePlayPauseButton(); // Update icon immediately
                 }
             });
         }
@@ -100,7 +134,6 @@ public class PlayerActivity extends AppCompatActivity {
         if (videoUrl != null) {
             MediaItem mediaItem = MediaItem.fromUri(Uri.parse(videoUrl));
             exoPlayer.setMediaItem(mediaItem);
-            exoPlayer.prepare();
             
             // Configurar audio en español y calidad automática después de preparar
             exoPlayer.addListener(new Player.Listener() {
@@ -109,19 +142,23 @@ public class PlayerActivity extends AppCompatActivity {
                     if (state == Player.STATE_READY) {
                         // Esperar a que el video esté listo para configurar audio y calidad
                         configureInitialSettings();
+                        // Seek to resume position if it was set
+                        if (resumePosition != C.TIME_UNSET) {
+                            exoPlayer.seekTo(resumePosition);
+                            resumePosition = C.TIME_UNSET; // Reset after seeking once
+                        }
                     }
                 }
+                
+                @Override
+                public void onIsPlayingChanged(boolean isPlaying) {
+                    updatePlayPauseButton();
+                }
             });
-            
+
+            exoPlayer.prepare();
             exoPlayer.play();
         }
-        
-        exoPlayer.addListener(new Player.Listener() {
-            @Override
-            public void onIsPlayingChanged(boolean isPlaying) {
-                updatePlayPauseButton();
-            }
-        });
     }
 
     private void configureInitialSettings() {
@@ -201,9 +238,35 @@ public class PlayerActivity extends AppCompatActivity {
         }
     }
 
+    private void savePlaybackPosition() {
+        if (exoPlayer != null && videoUrl != null) {
+            long currentPosition = exoPlayer.getCurrentPosition();
+            long duration = exoPlayer.getDuration();
+            
+            // Don't save if position is invalid or video is almost finished (e.g., 95%)
+            if (currentPosition > 0 && (duration == C.TIME_UNSET || currentPosition < duration * 0.95)) {
+                SharedPreferences.Editor editor = sharedPreferences.edit();
+                editor.putLong(videoUrl, currentPosition);
+                editor.apply();
+            } else {
+                // If video is finished or position is invalid, clear the saved position
+                clearPlaybackPosition();
+            }
+        }
+    }
+
+    private void clearPlaybackPosition() {
+        if (videoUrl != null) {
+            SharedPreferences.Editor editor = sharedPreferences.edit();
+            editor.remove(videoUrl);
+            editor.apply();
+        }
+    }
+
     @Override
     protected void onPause() {
         super.onPause();
+        savePlaybackPosition();
         if (exoPlayer != null) {
             exoPlayer.setPlayWhenReady(false);
             updatePlayPauseButton();
@@ -212,6 +275,7 @@ public class PlayerActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        savePlaybackPosition();
         super.onDestroy();
         if (exoPlayer != null) {
             exoPlayer.release();
