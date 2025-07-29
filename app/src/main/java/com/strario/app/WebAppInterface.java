@@ -4,13 +4,13 @@ import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
 import android.webkit.JavascriptInterface;
-import java.util.concurrent.atomic.AtomicBoolean;
+
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class WebAppInterface {
     private Context context;
-    private AtomicBoolean videoSent = new AtomicBoolean(false);
+    private boolean videoSent = false;
 
     WebAppInterface(Context context) {
         this.context = context;
@@ -18,49 +18,73 @@ public class WebAppInterface {
 
     @JavascriptInterface
     public void playVideo(String url, String title, String description) {
-        if (videoSent.getAndSet(true)) {
-            return; // Video already sent
-        }
+        if (videoSent) return;
+        videoSent = true;
+        
+        // Procesar el enlace directamente sin validación
         launchPlayer(url, title, description);
     }
 
     @JavascriptInterface
     public void detectVideo(String videoUrl) {
-        Log.d("WebAppInterface", "Video detected via JS: " + videoUrl);
-        if (isValidVideoUrl(videoUrl)) {
-             if (videoSent.getAndSet(true)) {
-                return; 
+        Log.d("WebAppInterface", "Video detectado: " + videoUrl);
+        
+        // Aceptar cualquier tipo de enlace directamente
+        if (videoUrl != null && !videoUrl.isEmpty()) {
+            if (!videoSent) {
+                videoSent = true;
+                launchPlayer(videoUrl, "Video Detectado", "Contenido automático");
             }
-            launchPlayer(videoUrl, "Detected Video", "Auto-detected content");
+        }
+    }
+
+    @JavascriptInterface
+    public void extractFromEmbed(String embedCode) {
+        if (embedCode == null || embedCode.isEmpty()) return;
+        
+        // Extraer cualquier URL de video de manera más flexible
+        String[] patterns = {
+            "src=['\"]([^'\"]+)['\"]",
+            "href=['\"]([^'\"]+)['\"]",
+            "data-video=['\"]([^'\"]+)['\"]",
+            "data-src=['\"]([^'\"]+)['\"]",
+            "source:\\s*['\"]([^'\"]+)['\"]",
+            "file:\\s*['\"]([^'\"]+)['\"]"
+        };
+        
+        for (String pattern : patterns) {
+            Pattern p = Pattern.compile(pattern);
+            Matcher m = p.matcher(embedCode.toLowerCase());
+            if (m.find()) {
+                String videoUrl = m.group(1);
+                // Enviar directamente a ExoPlayer
+                launchPlayer(videoUrl, "Video desde Embed", "Detectado automáticamente");
+                return;
+            }
+        }
+        
+        // Si no se encuentra patrón, intentar usar el embed completo como URL
+        if (embedCode.contains("http")) {
+            launchPlayer(embedCode, "Video Directo", "Enlace directo");
         }
     }
 
     public void resetVideoSentFlag() {
-        videoSent.set(false);
+        videoSent = false;
     }
     
     public boolean isVideoUrl(String url) {
-        return url != null && (url.contains(".m3u8") || url.contains(".mp4"));
+        // Aceptar cualquier URL que contenga http/https
+        return url != null && (url.startsWith("http://") || url.startsWith("https://"));
     }
-
-    private boolean isValidVideoUrl(String url) {
-        return url != null &&
-               (url.startsWith("http") || url.startsWith("https")) &&
-               (url.contains(".m3u8") ||
-                url.contains(".mp4") ||
-                url.contains(".m3u") ||
-                url.contains("/hls/") ||
-                url.contains("manifest.mpd") ||
-                url.contains(".ts"));
-    }
-
+    
     private void launchPlayer(String url, String title, String description) {
-        if (url == null || url.isEmpty()) return;
+        if (url == null || url.trim().isEmpty()) return;
 
         Intent intent = new Intent(context, PlayerActivity.class);
-        intent.putExtra("VIDEO_URL", url);
-        intent.putExtra("VIDEO_TITLE", title);
-        intent.putExtra("VIDEO_DESCRIPTION", description);
+        intent.putExtra("VIDEO_URL", url.trim());
+        intent.putExtra("VIDEO_TITLE", title != null ? title : "Video");
+        intent.putExtra("VIDEO_DESCRIPTION", description != null ? description : "");
         context.startActivity(intent);
     }
 }
