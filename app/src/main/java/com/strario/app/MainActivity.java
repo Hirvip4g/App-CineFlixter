@@ -6,7 +6,6 @@ import android.os.Bundle;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
-import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -61,50 +60,66 @@ public class MainActivity extends AppCompatActivity {
                 // Reset flag for new page
                 webAppInterface.resetVideoSentFlag();
                 
-                // Inyectar script para detectar m3u8 dinámicos
+                // Enhanced detection script
                 String injectionScript = 
-                    "setTimeout(() => {" +
-                    "  const findM3U8 = () => {" +
+                    "(function() {" +
+                    "  function detectVideo() {" +
                     "    const sources = [];" +
-                    "    // Buscar en video elements" +
-                    "    document.querySelectorAll('video').forEach(v => {" +
-                    "      if (v.src && v.src.includes('.m3u8')) sources.push(v.src);" +
-                    "      v.querySelectorAll('source').forEach(s => {" +
-                    "        if (s.src && s.src.includes('.m3u8')) sources.push(s.src);" +
-                    "      });" +
+                    "    " +
+                    "    // 1. Video elements with src" +
+                    "    document.querySelectorAll('video[src]').forEach(v => {" +
+                    "      if (v.src) sources.push(v.src);" +
                     "    });" +
-                    "    // Buscar en objetos JavaScript" +
-                    "    for (let prop in window) {" +
-                    "      try {" +
-                    "        if (window[prop] && typeof window[prop] === 'object') {" +
-                    "          const str = JSON.stringify(window[prop]);" +
-                    "          const matches = str.match(/https?:[^\"']*\\.m3u8[^\"']*/g);" +
-                    "          if (matches) sources.push(...matches);" +
+                    "    " +
+                    "    // 2. Source elements" +
+                    "    document.querySelectorAll('source[src]').forEach(s => {" +
+                    "      if (s.src) sources.push(s.src);" +
+                    "    });" +
+                    "    " +
+                    "    // 3. Common video file extensions" +
+                    "    const videoExtensions = ['.m3u8', '.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm'];" +
+                    "    const allLinks = Array.from(document.querySelectorAll('a, link, script, iframe')).map(el => el.href || el.src || el.getAttribute('data-src')).filter(Boolean);" +
+                    "    " +
+                    "    allLinks.forEach(link => {" +
+                    "      if (videoExtensions.some(ext => link.toLowerCase().includes(ext))) {" +
+                    "        sources.push(link);" +
+                    "      }" +
+                    "    });" +
+                    "    " +
+                    "    // 4. Embedded players" +
+                    "    const embeds = document.querySelectorAll('iframe, embed, object');" +
+                    "    embeds.forEach(embed => {" +
+                    "      const src = embed.src || embed.getAttribute('data-src') || embed.getAttribute('data-video');" +
+                    "      if (src) sources.push(src);" +
+                    "    });" +
+                    "    " +
+                    "    // 5. Check window objects for video URLs" +
+                    "    try {" +
+                    "      const allText = document.body.innerText;" +
+                    "      const urlRegex = /https?:\\/\\/[^\\s\"'<>]+/g;" +
+                    "      const foundUrls = allText.match(urlRegex) || [];" +
+                    "      foundUrls.forEach(url => {" +
+                    "        if (videoExtensions.some(ext => url.toLowerCase().includes(ext))) {" +
+                    "          sources.push(url.split('?')[0]);" +
                     "        }" +
-                    "      } catch(e) {}" +
-                    "    }" +
-                    "    // Buscar en fetch/xhr interceptados" +
-                    "    const originalFetch = window.fetch;" +
-                    "    window.fetch = function(...args) {" +
-                    "      const url = args[0];" +
-                    "      if (typeof url === 'string' && url.includes('.m3u8')) {" +
-                    "        AndroidInterface.detectVideo(url);" +
+                    "      });" +
+                    "    } catch(e) {}" +
+                    "    " +
+                    "    // Send unique sources" +
+                    "    const uniqueSources = [...new Set(sources)];" +
+                    "    uniqueSources.forEach(source => {" +
+                    "      if (source && source.trim()) {" +
+                    "        AndroidInterface.detectVideo(source.split('?')[0]);" +
                     "      }" +
-                    "      return originalFetch.apply(this, args);" +
-                    "    };" +
-                    "    // Buscar en network requests" +
-                    "    const originalOpen = XMLHttpRequest.prototype.open;" +
-                    "    XMLHttpRequest.prototype.open = function(method, url) {" +
-                    "      if (typeof url === 'string' && url.includes('.m3u8')) {" +
-                    "        AndroidInterface.detectVideo(url);" +
-                    "      }" +
-                    "      return originalOpen.apply(this, arguments);" +
-                    "    };" +
-                    "    return sources;" +
-                    "  };" +
-                    "  const m3u8s = findM3U8();" +
-                    "  m3u8s.forEach(url => AndroidInterface.detectVideo(url));" +
-                    "}, 3000);";
+                    "    });" +
+                    "  }" +
+                    "  " +
+                    "  // Run detection multiple times" +
+                    "  setTimeout(detectVideo, 1000);" +
+                    "  setTimeout(detectVideo, 3000);" +
+                    "  setTimeout(detectVideo, 5000);" +
+                    "  setInterval(detectVideo, 10000);" +
+                    "})();";
                 
                 view.loadUrl("javascript:" + injectionScript);
             }

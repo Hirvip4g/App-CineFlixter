@@ -5,12 +5,13 @@ import android.content.Intent;
 import android.util.Log;
 import android.webkit.JavascriptInterface;
 
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class WebAppInterface {
     private Context context;
-    private boolean videoSent = false;
+    private AtomicBoolean videoSent = new AtomicBoolean(false);
 
     WebAppInterface(Context context) {
         this.context = context;
@@ -18,23 +19,28 @@ public class WebAppInterface {
 
     @JavascriptInterface
     public void playVideo(String url, String title, String description) {
-        if (videoSent) return;
-        videoSent = true;
-        
-        // Procesar el enlace directamente sin validación
-        launchPlayer(url, title, description);
+        if (videoSent.getAndSet(true)) return;
+        launchPlayer(url.trim(), title, description);
     }
 
     @JavascriptInterface
     public void detectVideo(String videoUrl) {
-        Log.d("WebAppInterface", "Video detectado: " + videoUrl);
+        // Aceptar cualquier URL que parezca ser un video
+        if (videoUrl == null || videoUrl.isEmpty()) return;
         
-        // Aceptar cualquier tipo de enlace directamente
-        if (videoUrl != null && !videoUrl.isEmpty()) {
-            if (!videoSent) {
-                videoSent = true;
-                launchPlayer(videoUrl, "Video Detectado", "Contenido automático");
-            }
+        String url = videoUrl.trim().toLowerCase();
+        boolean isVideo = url.contains(".mp4") || 
+                         url.contains(".m3u8") || 
+                         url.contains(".avi") || 
+                         url.contains(".mkv") || 
+                         url.contains(".mov") || 
+                         url.contains(".flv") || 
+                         url.contains(".webm") ||
+                         url.contains("video") ||
+                         url.contains("stream");
+        
+        if (isVideo && videoSent.getAndSet(true) == false) {
+            launchPlayer(videoUrl.trim(), "Video Detectado", "Contenido automático");
         }
     }
 
@@ -42,40 +48,35 @@ public class WebAppInterface {
     public void extractFromEmbed(String embedCode) {
         if (embedCode == null || embedCode.isEmpty()) return;
         
-        // Extraer cualquier URL de video de manera más flexible
+        // Extraer cualquier URL de video
         String[] patterns = {
-            "src=['\"]([^'\"]+)['\"]",
-            "href=['\"]([^'\"]+)['\"]",
-            "data-video=['\"]([^'\"]+)['\"]",
-            "data-src=['\"]([^'\"]+)['\"]",
-            "source:\\s*['\"]([^'\"]+)['\"]",
-            "file:\\s*['\"]([^'\"]+)['\"]"
+            "https?://[^\\s\"'<>]+\\.m3u8[^\\s\"'<>]*",
+            "https?://[^\\s\"'<>]+\\.mp4[^\\s\"'<>]*",
+            "https?://[^\\s\"'<>]+\\.txt[^\\s\"'<>]*",
+            "https?://[^\\s\"'<>]+\\.avi[^\\s\"'<>]*",
+            "https?://[^\\s\"'<>]+\\.mkv[^\\s\"'<>]*"
         };
         
         for (String pattern : patterns) {
-            Pattern p = Pattern.compile(pattern);
-            Matcher m = p.matcher(embedCode.toLowerCase());
+            java.util.regex.Pattern p = java.util.regex.Pattern.compile(pattern, java.util.regex.Pattern.CASE_INSENSITIVE);
+            java.util.regex.Matcher m = p.matcher(embedCode);
             if (m.find()) {
-                String videoUrl = m.group(1);
-                // Enviar directamente a ExoPlayer
-                launchPlayer(videoUrl, "Video desde Embed", "Detectado automáticamente");
-                return;
+                String url = m.group();
+                if (!url.isEmpty()) {
+                    launchPlayer(url, "Video desde Embed", "Detectado automáticamente");
+                    return;
+                }
             }
         }
         
-        // Si no se encuentra patrón, intentar usar el embed completo como URL
+        // Si no encuentra patrón, intentar con el embed completo
         if (embedCode.contains("http")) {
             launchPlayer(embedCode, "Video Directo", "Enlace directo");
         }
     }
 
     public void resetVideoSentFlag() {
-        videoSent = false;
-    }
-    
-    public boolean isVideoUrl(String url) {
-        // Aceptar cualquier URL que contenga http/https
-        return url != null && (url.startsWith("http://") || url.startsWith("https://"));
+        videoSent.set(false);
     }
     
     private void launchPlayer(String url, String title, String description) {
