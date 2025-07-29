@@ -1,140 +1,131 @@
 package com.cineflixter.app;
 
-import android.content.Context;
-import android.content.Intent;
-import android.os.Handler;
-import android.os.Looper;
-import android.util.Log;
+import com.tanasi.retrofit_jsoup.converter.JsoupConverterFactory
+import com.tanasi.streamflix.models.Video
+import com.tanasi.streamflix.utils.JsUnpacker
+import org.jsoup.nodes.Document
+import retrofit2.Retrofit
+import retrofit2.http.GET
+import retrofit2.http.Header
+import retrofit2.http.Url
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+open class StreamWishExtractor : Extractor() {
 
-public class StreamWishExtractor {
+    override val name = "Streamwish"
+    override val mainUrl = "https://streamwish.to"
+    override val aliasUrls = listOf("https://streamwish.com","https://streamwish.to","https://ajmidyad.sbs","https://khadhnayad.sbs","https://yadmalik.sbs",
+        "https://hayaatieadhab.sbs","https://kharabnahs.sbs","https://atabkhha.sbs","https://atabknha.sbs","https://atabknhk.sbs",
+        "https://atabknhs.sbs","https://abkrzkr.sbs","https://abkrzkz.sbs","https://wishembed.pro","https://mwish.pro","https://strmwis.xyz",
+        "https://awish.pro","https://dwish.pro","https://vidmoviesb.xyz","https://embedwish.com","https://cilootv.store","https://uqloads.xyz",
+        "https://tuktukcinema.store","https://doodporn.xyz","https://ankrzkz.sbs","https://volvovideo.top","https://streamwish.site",
+        "https://wishfast.top","https://ankrznm.sbs","https://sfastwish.com","https://eghjrutf.sbs","https://eghzrutw.sbs",
+        "https://playembed.online","https://egsyxurh.sbs","https://egtpgrvh.sbs","https://flaswish.com","https://obeywish.com",
+        "https://cdnwish.com","https://javsw.me","https://cinemathek.online","https://trgsfjll.sbs","https://fsdcmo.sbs",
+        "https://anime4low.sbs","https://mohahhda.site","https://ma2d.store","https://dancima.shop","https://swhoi.com",
+        "https://gsfqzmqu.sbs","https://jodwish.com","https://swdyu.com","https://strwish.com","https://asnwish.com",
+        "https://wishonly.site","https://playerwish.com","https://katomen.store","https://hlswish.com","https://streamwish.fun",
+        "https://swishsrv.com","https://iplayerhls.com","https://hlsflast.com","https://4yftwvrdz7.sbs","https://ghbrisk.com",
+        "https://eb8gfmjn71.sbs","https://cybervynx.com","https://edbrdl7pab.sbs","https://stbhg.click","https://dhcplay.com","https://gradehgplus.com", "https://ultpreplayer.com")
 
-    private static final String TAG = "StreamWishExtractor";
-    private static final ExecutorService executor = Executors.newSingleThreadExecutor();
-    private static final Handler handler = new Handler(Looper.getMainLooper());
-    
-    // Solo dominio swiftplayers.com
-    private static final String[] DOMAINS = {
-        "https://swiftplayers.com"
-    };
+    protected var referer = ""
 
-    public interface ExtractionListener {
-        void onExtractionResult(String videoUrl);
-    }
+    override suspend fun extract(link: String): Video {
+        val service = Service.build(mainUrl)
 
-    public static void extract(Context context, String pageUrl, ExtractionListener listener) {
-        new Thread(() -> {
-            try {
-                URL url = new URL(pageUrl);
-                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-                
-                // Headers necesarios
-                connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
-                connection.setRequestProperty("Referer", "https://swiftplayers.com");
-                connection.setRequestProperty("Accept", "*/*");
-                connection.setRequestProperty("Accept-Language", "en-US,en;q=0.9");
-                
-                BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-                String inputLine;
-                StringBuilder content = new StringBuilder();
-                while ((inputLine = in.readLine()) != null) {
-                    content.append(inputLine).append("\n");
-                }
-                in.close();
-                connection.disconnect();
+        val document = service.get(link, referer = referer)
 
-                String htmlContent = content.toString();
-                
-                // Extraer URL del video usando el patrón específico
-                String videoUrl = extractVideoUrl(htmlContent);
-                
-                if (videoUrl != null) {
-                    Log.d(TAG, "URL extraída: " + videoUrl);
-                    listener.onExtractionResult(videoUrl);
-                } else {
-                    Log.e(TAG, "No se pudo extraer el video de: " + pageUrl);
-                    listener.onExtractionResult(null);
-                }
 
-            } catch (Exception e) {
-                Log.e(TAG, "Error en extracción de " + pageUrl, e);
-                listener.onExtractionResult(null);
+        val script = Regex("<script .*>(eval.*?)</script>", RegexOption.DOT_MATCHES_ALL).find(document.toString())
+            ?.groupValues?.get(1)
+            ?.let { JsUnpacker(it).unpack() }
+            ?: throw Exception("Can't retrieve script")
+
+        val source = Regex("\"hls(\\d+)\"\\s*:\\s*\"(https:[^\"]+\\.m3u8[^\"]*)\"")
+            .findAll(script)
+            .map { it.groupValues[1].toInt() to it.groupValues[2] }
+            .sortedBy { it.first }  // hls2 > hls3 > hls4
+            .map { it.second }
+            .firstOrNull()
+            ?: throw Exception("Can't retrieve m3u8")
+
+        val subtitles = Regex("file:\\s*\"(.*?)\"(?:,label:\\s*\"(.*?)\")?,kind:\\s*\"(.*?)\"").findAll(
+            Regex("tracks:\\s*\\[(.*?)]").find(script)
+                ?.groupValues?.get(1)
+                ?: ""
+        )
+            .filter { it.groupValues[3] == "captions" }
+            .map {
+                Video.Subtitle(
+                    label = it.groupValues[2],
+                    file = it.groupValues[1],
+                )
             }
-        }).start();
+            .toList()
+
+        val video = Video(
+            source = source,
+            subtitles = subtitles,
+            headers = mapOf(
+                "Referer" to referer,
+                "Origin" to mainUrl,
+                "User-Agent" to "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:139.0) Gecko/20100101 Firefox/139.0",
+                "Accept" to "*/*",
+                "Accept-Language" to "en-US,en;q=0.5",
+                "Connection" to "keep-alive",
+            ),
+        )
+
+        return video
     }
 
-    private static String extractVideoUrl(String content) {
-        // Patrones para extraer .m3u8
-        String[] patterns = {
-            "\"hls(\\d+)\"\\s*:\\s*\"(https:[^\"]+\\.m3u8[^\"]*)\"",
-            "file:\\s*\"(https:[^\"]*\\.m3u8[^\"]*)\"",
-            "sources:\\s*\\[\\s*\\{[^}]*file:\\s*\"([^\"]+\\.m3u8[^\"]*)"
-        };
-        
-        for (String pattern : patterns) {
-            Pattern p = Pattern.compile(pattern);
-            Matcher m = p.matcher(content);
-            if (m.find()) {
-                String url = m.group(m.groupCount());
-                if (url.startsWith("http")) {
-                    return url;
-                }
+
+    class UqloadsXyz : StreamWishExtractor() {
+        override val name = "Uqloads"
+        override val mainUrl = "https://uqloads.xyz"
+
+        suspend fun extract(link: String, referer: String): Video {
+            this.referer = referer
+            return extract(link)
+        }
+    }
+    class SwiftPlayersExtractor : StreamWishExtractor(){
+        override val name = "SwiftPlayer"
+        override val mainUrl = "https://swiftplayers.com/"
+    }
+
+    class SwishExtractor : StreamWishExtractor() {
+        override val name = "Swish"
+        override val mainUrl = "https://swishsrv.com/"
+    }
+
+    class HlswishExtractor : StreamWishExtractor() {
+        override val name = "Hlswish"
+        override val mainUrl = "https://hlswish.com/"
+    }
+
+    class PlayerwishExtractor : StreamWishExtractor() {
+        override val name = "Playerwish"
+        override val mainUrl = "https://playerwish.com/"
+    }
+
+
+    private interface Service {
+
+        companion object {
+            fun build(baseUrl: String): Service {
+                val retrofit = Retrofit.Builder()
+                    .baseUrl(baseUrl)
+                    .addConverterFactory(JsoupConverterFactory.create())
+                    .build()
+
+                return retrofit.create(Service::class.java)
             }
         }
-        
-        return null;
-    }
 
-    public static boolean isSupported(String url) {
-        if (url == null) return false;
-        return url.contains("swiftplayers.com");
-    }
-
-    public static void launchPlayer(Context context, String url, String title) {
-        if (url == null || url.isEmpty()) return;
-        
-        Intent intent = new Intent(context, PlayerActivity.class);
-        intent.putExtra("VIDEO_URL", url);
-        intent.putExtra("VIDEO_TITLE", title);
-        intent.putExtra("VIDEO_DESCRIPTION", "Contenido de SwiftPlayers");
-        context.startActivity(intent);
-    }
-
-    // Utility method to handle txt playlists
-    public static void handleTxtPlaylist(Context context, String txtUrl, ExtractionListener listener) {
-        executor.execute(() -> {
-            String m3u8Url = null;
-            try {
-                URL url = new URL(txtUrl);
-                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-                connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
-                connection.connect();
-                
-                BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    if (line.trim().endsWith(".m3u8")) {
-                        m3u8Url = line.trim();
-                        break;
-                    }
-                }
-                reader.close();
-                
-                String finalUrl = m3u8Url != null ? m3u8Url : txtUrl.replace(".txt", ".m3u8");
-                handler.post(() -> listener.onExtractionResult(finalUrl));
-                
-            } catch (Exception e) {
-                Log.e(TAG, "Failed to handle txt playlist", e);
-                handler.post(() -> listener.onExtractionResult(null));
-            }
-        });
+        @GET
+        suspend fun get(
+            @Url url: String,
+            @Header("referer") referer: String = "",
+        ): Document
     }
 }
