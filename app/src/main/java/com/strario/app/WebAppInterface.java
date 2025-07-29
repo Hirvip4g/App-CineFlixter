@@ -4,6 +4,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
 import android.webkit.JavascriptInterface;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
 
 public class WebAppInterface {
     private Context context;
