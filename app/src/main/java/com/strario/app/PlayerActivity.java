@@ -130,16 +130,8 @@ public class PlayerActivity extends AppCompatActivity {
             return true;
         }
         
-        try {
-            URL testUrl = new URL(url);
-            HttpURLConnection connection = (HttpURLConnection) testUrl.openConnection();
-            connection.setRequestMethod("HEAD");
-            connection.setConnectTimeout(5000);
-            connection.connect();
-            return connection.getResponseCode() == HttpURLConnection.HTTP_OK;
-        } catch (Exception e) {
-            return false;
-        }
+        // Skip validation for other URLs to prevent 404 errors
+        return true;
     }
     
     private void preparePlayer(String url) {

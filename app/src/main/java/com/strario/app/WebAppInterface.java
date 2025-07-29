@@ -37,6 +37,13 @@ public class WebAppInterface {
         }
     }
 
+    @JavascriptInterface
+    public void extractFromEmbed(String embedCode) {
+        if (!videoSent.get()) {
+            extractVideoFromEmbed(embedCode);
+        }
+    }
+
     public void resetVideoSentFlag() {
         videoSent.set(false);
     }
@@ -64,6 +71,29 @@ public class WebAppInterface {
                 url.contains(".txt")); // Accept .txt anywhere
     }
 
+    private void extractVideoFromEmbed(String embedCode) {
+        // Extract video URLs from common embed patterns
+        String[] patterns = {
+            "src=['\"]([^'\"]+\\.m3u8[^'\"]*)['\"]",
+            "src=['\"]([^'\"]+\\.mp4[^'\"]*)['\"]",
+            "src=['\"]([^'\"]+\\.txt[^'\"]*)['\"]", // Add .txt support
+            "data-video=['\"]([^'\"]+)['\"]",
+            "data-src=['\"]([^'\"]+)['\"]"
+        };
+        
+        for (String pattern : patterns) {
+            Pattern p = Pattern.compile(pattern);
+            Matcher m = p.matcher(embedCode);
+            if (m.find()) {
+                String videoUrl = m.group(1);
+                if (isValidVideoUrl(videoUrl)) {
+                    launchPlayer(videoUrl, "Embedded Video", "Video from embed");
+                    return;
+                }
+            }
+        }
+    }
+    
     private void launchPlayer(String url, String title, String description) {
         if (url == null || url.isEmpty()) return;
 

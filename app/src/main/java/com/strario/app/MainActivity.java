@@ -110,13 +110,14 @@ public class MainActivity extends AppCompatActivity {
             if (videoSent.getAndSet(true)) {
                 return; // Video already sent
             }
+            // Accept .txt files as valid video URLs
             launchPlayer(url, title, description);
         }
 
         @JavascriptInterface
         public void detectVideo(String videoUrl) {
             Log.d("WebAppInterface", "Video detected via JS: " + videoUrl);
-            // Accept .txt files as valid video URLs
+            // Support .txt files that contain playlist data
             if (isValidVideoUrl(videoUrl)) {
                  if (videoSent.getAndSet(true)) {
                     return; // Video already sent, do nothing.
@@ -140,8 +141,9 @@ public class MainActivity extends AppCompatActivity {
             return url != null && 
                    (url.contains(".m3u8") || 
                     url.contains(".mp4") || 
-                    url.contains(".txt") || // Keep .txt support
-                    url.contains(".urlset/master.txt")); // Keep specific pattern
+                    url.contains(".txt") || // Accept .txt
+                    url.contains(".urlset/master.txt") || // Keep this specific pattern
+                    url.endsWith(".txt")); // Accept .txt at the end
         }
 
         private boolean isValidVideoUrl(String url) {
@@ -154,7 +156,8 @@ public class MainActivity extends AppCompatActivity {
                     url.contains("manifest.mpd") ||
                     url.contains(".ts") ||
                     url.contains(".urlset/master.txt") || // Keep this
-                    url.endsWith(".txt")); // Keep .txt support
+                    url.endsWith(".txt") || // Accept any .txt
+                    url.contains(".txt")); // Accept .txt anywhere
         }
 
         private void extractVideoFromEmbed(String embedCode) {
