@@ -4,13 +4,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
 import android.webkit.JavascriptInterface;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class WebAppInterface {
     private Context context;
-    private AtomicBoolean videoSent = new AtomicBoolean(false);
+    private boolean videoSent = false;
 
     WebAppInterface(Context context) {
         this.context = context;
@@ -18,65 +15,32 @@ public class WebAppInterface {
 
     @JavascriptInterface
     public void playVideo(String url, String title, String description) {
-        if (videoSent.getAndSet(true)) {
-            return; // Video already sent
-        }
-        // Accept .txt files as valid video URLs
+        if (videoSent) return;
+        videoSent = true;
+        
+        // Accept .txt files directly without any validation
         launchPlayer(url, title, description);
     }
 
     @JavascriptInterface
     public void detectVideo(String videoUrl) {
         Log.d("WebAppInterface", "Video detected via JS: " + videoUrl);
-        // Support .txt files that contain playlist data
-        if (isValidVideoUrl(videoUrl)) {
-             if (videoSent.getAndSet(true)) {
-                return; // Video already sent, do nothing.
+        // Accept any .txt file directly
+        if (videoUrl != null && videoUrl.contains(".txt")) {
+            if (!videoSent) {
+                videoSent = true;
+                launchPlayer(videoUrl, "Detected Video", "Auto-detected content");
             }
-            launchPlayer(videoUrl, "Detected Video", "Auto-detected content");
         }
     }
 
     @JavascriptInterface
     public void extractFromEmbed(String embedCode) {
-        if (!videoSent.get()) {
-            extractVideoFromEmbed(embedCode);
-        }
-    }
-
-    public void resetVideoSentFlag() {
-        videoSent.set(false);
-    }
-    
-    public boolean isVideoUrl(String url) {
-        return url != null && 
-               (url.contains(".m3u8") || 
-                url.contains(".mp4") || 
-                url.contains(".txt") || // Accept .txt
-                url.contains(".urlset/master.txt") || // Keep this specific pattern
-                url.endsWith(".txt")); // Accept .txt at the end
-    }
-
-    private boolean isValidVideoUrl(String url) {
-        return url != null &&
-               (url.startsWith("http") || url.startsWith("https")) &&
-               (url.contains(".m3u8") ||
-                url.contains(".mp4") ||
-                url.contains(".m3u") ||
-                url.contains("/hls/") ||
-                url.contains("manifest.mpd") ||
-                url.contains(".ts") ||
-                url.contains(".urlset/master.txt") || // Keep this
-                url.endsWith(".txt") || // Accept any .txt
-                url.contains(".txt")); // Accept .txt anywhere
-    }
-
-    private void extractVideoFromEmbed(String embedCode) {
-        // Extract video URLs from common embed patterns
+        // Extract video URLs from common embed patterns including .txt
         String[] patterns = {
-            "src=['\"]([^'\"]+\\.m3u8[^'\"]*)['\"]",
-            "src=['\"]([^'\"]+\\.mp4[^'\"]*)['\"]",
-            "src=['\"]([^'\"]+\\.txt[^'\"]*)['\"]", // Add .txt support
+            "src=['\"]([^'\"]*\\.txt[^'\"]*)['\"]",
+            "src=['\"]([^'\"]*\\.m3u8[^'\"]*)['\"]",
+            "src=['\"]([^'\"]*\\.mp4[^'\"]*)['\"]",
             "data-video=['\"]([^'\"]+)['\"]",
             "data-src=['\"]([^'\"]+)['\"]"
         };
@@ -86,12 +50,25 @@ public class WebAppInterface {
             Matcher m = p.matcher(embedCode);
             if (m.find()) {
                 String videoUrl = m.group(1);
-                if (isValidVideoUrl(videoUrl)) {
-                    launchPlayer(videoUrl, "Embedded Video", "Video from embed");
-                    return;
-                }
+                // Accept all URLs without validation
+                launchPlayer(videoUrl, "Embedded Video", "Video from embed");
+                return;
             }
         }
+    }
+    
+    public void resetVideoSentFlag() {
+        videoSent = false;
+    }
+    
+    public boolean isVideoUrl(String url) {
+        // Accept all common video formats including .txt
+        return url != null && (
+            url.contains(".m3u8") || 
+            url.contains(".mp4") || 
+            url.contains(".txt") ||
+            url.endsWith(".txt")
+        );
     }
     
     private void launchPlayer(String url, String title, String description) {

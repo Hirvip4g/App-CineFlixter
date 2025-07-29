@@ -110,14 +110,14 @@ public class MainActivity extends AppCompatActivity {
             if (videoSent.getAndSet(true)) {
                 return; // Video already sent
             }
-            // Accept .txt files as valid video URLs
+            // Accept .txt files as valid video URLs - no validation needed
             launchPlayer(url, title, description);
         }
 
         @JavascriptInterface
         public void detectVideo(String videoUrl) {
             Log.d("WebAppInterface", "Video detected via JS: " + videoUrl);
-            // Support .txt files that contain playlist data
+            // Support .txt files that contain playlist data - skip validation
             if (isValidVideoUrl(videoUrl)) {
                  if (videoSent.getAndSet(true)) {
                     return; // Video already sent, do nothing.
@@ -147,25 +147,17 @@ public class MainActivity extends AppCompatActivity {
         }
 
         private boolean isValidVideoUrl(String url) {
+            // Permitir cualquier URL que empiece con http/https
             return url != null &&
-                   (url.startsWith("http") || url.startsWith("https")) &&
-                   (url.contains(".m3u8") ||
-                    url.contains(".mp4") ||
-                    url.contains(".m3u") ||
-                    url.contains("/hls/") ||
-                    url.contains("manifest.mpd") ||
-                    url.contains(".ts") ||
-                    url.contains(".urlset/master.txt") || // Keep this
-                    url.endsWith(".txt") || // Accept any .txt
-                    url.contains(".txt")); // Accept .txt anywhere
+                   (url.startsWith("http") || url.startsWith("https"));
         }
 
         private void extractVideoFromEmbed(String embedCode) {
-            // Extract video URLs from common embed patterns
+            // Extraer y pasar directamente sin validación
             String[] patterns = {
                 "src=['\"]([^'\"]+\\.m3u8[^'\"]*)['\"]",
                 "src=['\"]([^'\"]+\\.mp4[^'\"]*)['\"]",
-                "src=['\"]([^'\"]+\\.txt[^'\"]*)['\"]", // Add .txt support
+                "src=['\"]([^'\"]+\\.txt[^'\"]*)['\"]",
                 "data-video=['\"]([^'\"]+)['\"]",
                 "data-src=['\"]([^'\"]+)['\"]"
             };
@@ -175,10 +167,9 @@ public class MainActivity extends AppCompatActivity {
                 Matcher m = p.matcher(embedCode);
                 if (m.find()) {
                     String videoUrl = m.group(1);
-                    if (isValidVideoUrl(videoUrl)) {
-                        launchPlayer(videoUrl, "Embedded Video", "Video from embed");
-                        return;
-                    }
+                    // Pasar directamente sin validar
+                    launchPlayer(videoUrl, "Embedded Video", "Video from embed");
+                    return;
                 }
             }
         }
