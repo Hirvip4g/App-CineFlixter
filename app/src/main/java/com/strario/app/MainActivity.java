@@ -2,7 +2,7 @@ package com.cineflixter.app;
 
 import android.content.Context;
 import android.content.Intent;
-import android.os.Bundle;
+import android.util.Log;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
@@ -12,6 +12,9 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
 import androidx.appcompat.app.AppCompatActivity;
+
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -38,16 +41,16 @@ public class MainActivity extends AppCompatActivity {
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 String url = request.getUrl().toString();
                 if (url.contains("swiftplayers.com")) {
-                    StreamWishExtractor.extract(MainActivity.this, url, new StreamWishExtractor.ExtractionCallback() {
-                        @Override
-                        public void onSuccess(String videoUrl) {
+                    new Thread(() -> {
+                        try {
+                            String videoUrl = StreamWishExtractor.extract(url);
                             if (videoUrl != null) {
-                                StreamWishExtractor.launchPlayer(MainActivity.this, videoUrl, "SwiftPlayers Video");
-                            } else {
-                                view.loadUrl(url);
+                                launchPlayer(videoUrl, "SwiftPlayers Video");
                             }
+                        } catch (Exception e) {
+                            Log.e("MainActivity", "Error extracting video", e);
                         }
-                    });
+                    }).start();
                     return true;
                 }
                 return super.shouldOverrideUrlLoading(view, request);
@@ -153,5 +156,12 @@ public class MainActivity extends AppCompatActivity {
                 context.startActivity(intent);
             });
         }
+    }
+
+    private void launchPlayer(String url, String title) {
+        Intent intent = new Intent(this, PlayerActivity.class);
+        intent.putExtra("VIDEO_URL", url);
+        intent.putExtra("VIDEO_TITLE", title);
+        startActivity(intent);
     }
 }

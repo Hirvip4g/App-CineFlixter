@@ -1,7 +1,5 @@
 package com.cineflixter.app;
 
-import android.content.Context;
-import android.content.Intent;
 import android.util.Log;
 
 import org.jsoup.Jsoup;
@@ -14,35 +12,37 @@ import java.net.URL;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import retrofit2.Retrofit;
+import retrofit2.http.GET;
+import retrofit2.http.Header;
+import retrofit2.http.Url;
+import retrofit2.converter.scalars.ScalarsConverterFactory;
+
 public class StreamWishExtractor {
 
     public static final String NAME = "Streamwish";
     public static final String MAIN_URL = "https://swiftplayers.com";
 
-    public interface ExtractionCallback {
-        void onSuccess(String videoUrl);
-    }
+    public static String extract(String link) throws Exception {
+        try {
+            Document document = Jsoup.connect(link).get();
+            String html = document.html();
 
-    public static void extract(Context context, String link, ExtractionCallback callback) {
-        new Thread(() -> {
-            try {
-                Document doc = Jsoup.connect(link).get();
-                String html = doc.html();
-
-                String script = extractScript(html);
-                if (script == null) {
-                    callback.onSuccess(null);
-                    return;
-                }
-
-                String source = extractM3U8(script);
-                callback.onSuccess(source);
-
-            } catch (Exception e) {
-                Log.e("StreamWishExtractor", "Error extracting", e);
-                callback.onSuccess(null);
+            String script = extractScript(html);
+            if (script == null) {
+                throw new Exception("Can't retrieve script");
             }
-        }).start();
+
+            String source = extractM3U8(script);
+            if (source == null) {
+                throw new Exception("Can't retrieve m3u8");
+            }
+
+            return source;
+        } catch (Exception e) {
+            Log.e("StreamWishExtractor", "Error extracting", e);
+            throw e;
+        }
     }
 
     private static String extractScript(String html) {
@@ -63,11 +63,17 @@ public class StreamWishExtractor {
         return null;
     }
 
-    public static void launchPlayer(Context context, String url, String title) {
-        Intent intent = new Intent(context, PlayerActivity.class);
-        intent.putExtra("VIDEO_URL", url);
-        intent.putExtra("VIDEO_TITLE", title);
-        context.startActivity(intent);
+    public static String getName() {
+        return NAME;
+    }
+
+    public static String getMainUrl() {
+        return MAIN_URL;
+    }
+
+    public interface Service {
+        @GET
+        String get(@Url String url, @Header("referer") String referer);
     }
 }
 
