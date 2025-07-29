@@ -96,11 +96,11 @@ public class PlayerActivity extends AppCompatActivity {
     }
     
     private void handleTxtPlaylist(String txtUrl) {
-        // For .txt files, use them directly - they contain M3U8 content
-        // ExoPlayer can handle M3U8 content even if the extension is .txt
+        // Los archivos .txt contienen contenido M3U8 - usarlos directamente
         String videoId = getVideoId(txtUrl);
         long savedPosition = sharedPreferences.getLong(videoId, C.TIME_UNSET);
         
+        // Eliminar la verificación de formato, confiar en que el .txt es válido
         this.videoUrl = txtUrl;
         
         if (savedPosition > 1000) {
@@ -124,6 +124,11 @@ public class PlayerActivity extends AppCompatActivity {
     }
     
     private boolean isValidM3U8(String url) {
+        // Siempre retornar true para .txt, confiar en que el servidor responde
+        if (url != null && (url.endsWith(".txt") || url.contains(".urlset/master.txt"))) {
+            return true;
+        }
+        
         try {
             URL testUrl = new URL(url);
             HttpURLConnection connection = (HttpURLConnection) testUrl.openConnection();
@@ -139,10 +144,29 @@ public class PlayerActivity extends AppCompatActivity {
     private void preparePlayer(String url) {
         this.videoUrl = url;
         
-        // Handle .txt files directly as video streams
+        // Manejar archivos .txt directamente sin verificación
         if (url != null && (url.endsWith(".txt") || url.contains(".urlset/master.txt"))) {
-            // Skip the resume dialog for .txt files and play directly
-            startPlayer();
+            String videoId = getVideoId(videoUrl);
+            long savedPosition = sharedPreferences.getLong(videoId, C.TIME_UNSET);
+            
+            if (savedPosition > 1000) {
+                new AlertDialog.Builder(this, R.style.CustomDialogTheme)
+                    .setTitle("Reanudar reproducción")
+                    .setMessage("¿Quieres continuar donde lo dejaste?")
+                    .setPositiveButton("Reanudar", (dialog, which) -> {
+                        resumePosition = savedPosition;
+                        startPlayer();
+                    })
+                    .setNegativeButton("Empezar de nuevo", (dialog, which) -> {
+                        clearPlaybackPosition();
+                        resumePosition = C.TIME_UNSET;
+                        startPlayer();
+                    })
+                    .setCancelable(false)
+                    .show();
+            } else {
+                startPlayer();
+            }
             return;
         }
         
@@ -220,7 +244,7 @@ public class PlayerActivity extends AppCompatActivity {
             });
         }
 
-        // Play video
+        // Play video - manejar .txt como stream válido
         if (videoUrl != null) {
             MediaItem mediaItem = MediaItem.fromUri(Uri.parse(videoUrl));
             exoPlayer.setMediaItem(mediaItem);
