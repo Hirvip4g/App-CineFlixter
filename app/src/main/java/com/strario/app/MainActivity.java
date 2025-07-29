@@ -10,97 +10,53 @@ import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import android.util.Log;
-import android.net.Uri;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.concurrent.atomic.AtomicBoolean;
-
 public class MainActivity extends AppCompatActivity {
-    
+
     private WebView webView;
-    private AtomicBoolean videoSent = new AtomicBoolean(false);
-    
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        
-        // Initialize WebView
+
         webView = findViewById(R.id.webView);
-        
-        // Configure WebView
+
         WebSettings webSettings = webView.getSettings();
         webSettings.setJavaScriptEnabled(true);
         webSettings.setDomStorageEnabled(true);
         webSettings.setMediaPlaybackRequiresUserGesture(false);
-        webSettings.setUserAgentString("Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36");
-        
-        // Setup JavaScript interface
+
         WebAppInterface webAppInterface = new WebAppInterface(this);
         webView.addJavascriptInterface(webAppInterface, "AndroidInterface");
-        
-        // Configure WebView client for video extraction
+
         webView.setWebChromeClient(new WebChromeClient());
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 String url = request.getUrl().toString();
-                Log.d("MainActivity", "Loading URL: " + url);
-                
-                // Reset flag on new page load
-                webAppInterface.resetVideoSentFlag();
-
-                if (StreamWishExtractor.isSupported(url)) {
-                    // Usar el nuevo extractor solo para swiftplayers.com
-                    StreamWishExtractor.extract(MainActivity.this, url, videoUrl -> {
-                        if (videoUrl != null) {
-                            StreamWishExtractor.launchPlayer(MainActivity.this, videoUrl, "SwiftPlayers Video");
-                        } else {
-                            // Si falla, cargar la URL original
-                            view.loadUrl(url);
+                if (url.contains("swiftplayers.com")) {
+                    StreamWishExtractor.extract(MainActivity.this, url, new StreamWishExtractor.ExtractionCallback() {
+                        @Override
+                        public void onSuccess(String videoUrl) {
+                            if (videoUrl != null) {
+                                StreamWishExtractor.launchPlayer(MainActivity.this, videoUrl, "SwiftPlayers Video");
+                            } else {
+                                view.loadUrl(url);
+                            }
                         }
                     });
                     return true;
                 }
-                
                 return super.shouldOverrideUrlLoading(view, request);
             }
-            
-            @Override
-            public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
-                String url = request.getUrl().toString();
-                
-                // Let the WebAppInterface handle video detection
-                if (webAppInterface.isVideoUrl(url)) {
-                    webAppInterface.playVideo(url, "Video", "Streaming content");
-                    return new WebResourceResponse(null, null, null); // Block request
-                }
-                
-                return super.shouldInterceptRequest(view, request);
-            }
-            
-            @Override
-            public void onPageFinished(WebView view, String url) {
-                super.onPageFinished(view, url);
-                // Reset flag for new page
-                webAppInterface.resetVideoSentFlag();
-            }
         });
-        
-        // Load the web app
+
         webView.loadUrl("file:///android_asset/index.html");
     }
-    
+
     @Override
     public void onBackPressed() {
         if (webView.canGoBack()) {
@@ -109,44 +65,37 @@ public class MainActivity extends AppCompatActivity {
             super.onBackPressed();
         }
     }
-    
+
     // JavaScript interface for video detection
     public class WebAppInterface {
-        private AtomicBoolean jsVideoSent = new AtomicBoolean(false);
         private Context context;
-        
+
         WebAppInterface(Context context) {
             this.context = context;
         }
-        
+
         @JavascriptInterface
         public void detectVideo(String videoUrl) {
             Log.d("WebAppInterface", "Video detected: " + videoUrl);
-            if (!jsVideoSent.get() && isValidVideoUrl(videoUrl)) {
+            if (isValidVideoUrl(videoUrl)) {
                 launchPlayer(videoUrl, "Detected Video", "Auto-detected streaming content");
-                jsVideoSent.set(true);
             }
         }
-        
+
         @JavascriptInterface
         public void playVideo(String url, String title, String description) {
-            if (!jsVideoSent.get()) {
+            if (isValidVideoUrl(url)) {
                 launchPlayer(url, title, description);
-                jsVideoSent.set(true);
             }
         }
-        
+
         @JavascriptInterface
         public void extractFromEmbed(String embedCode) {
-            if (!jsVideoSent.get()) {
+            if (isValidVideoUrl(embedCode)) {
                 extractVideoFromEmbed(embedCode);
             }
         }
-        
-        public void resetVideoSentFlag() {
-            jsVideoSent.set(false);
-        }
-        
+
         public boolean isVideoUrl(String url) {
             return url != null && 
                    (url.startsWith("http") || url.startsWith("https")) && 
@@ -158,7 +107,7 @@ public class MainActivity extends AppCompatActivity {
                     url.contains(".ts") ||
                     url.contains(".urlset/master.txt"));
         }
-        
+
         private boolean isValidVideoUrl(String url) {
             return url != null &&
                    (url.startsWith("http") || url.startsWith("https")) &&
@@ -170,7 +119,7 @@ public class MainActivity extends AppCompatActivity {
                     url.contains(".ts") ||
                     url.contains(".urlset/master.txt"));
         }
-        
+
         private void extractVideoFromEmbed(String embedCode) {
             // Extract video URLs from common embed patterns
             String[] patterns = {
@@ -192,7 +141,7 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         }
-        
+
         private void launchPlayer(String url, String title, String description) {
             if (url == null || url.isEmpty()) return;
             
