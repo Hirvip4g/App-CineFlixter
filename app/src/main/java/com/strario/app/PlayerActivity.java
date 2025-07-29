@@ -88,7 +88,8 @@ public class PlayerActivity extends AppCompatActivity {
         // Get video URL from intent
         videoUrl = getIntent().getStringExtra("VIDEO_URL");
         
-        if (videoUrl != null && videoUrl.contains(".urlset/master.txt")) {
+        // Handle .txt files directly without validation
+        if (videoUrl != null && videoUrl.contains(".txt")) {
             handleTxtPlaylist(videoUrl);
         } else {
             preparePlayer(videoUrl);
@@ -96,11 +97,11 @@ public class PlayerActivity extends AppCompatActivity {
     }
     
     private void handleTxtPlaylist(String txtUrl) {
-        // Los archivos .txt contienen contenido M3U8 - usarlos directamente
+        // .txt files contain M3U8 content - use them directly
         String videoId = getVideoId(txtUrl);
         long savedPosition = sharedPreferences.getLong(videoId, C.TIME_UNSET);
         
-        // Eliminar la verificación de formato, confiar en que el .txt es válido
+        // Remove format verification, trust that .txt is valid
         this.videoUrl = txtUrl;
         
         if (savedPosition > 1000) {
@@ -124,8 +125,8 @@ public class PlayerActivity extends AppCompatActivity {
     }
     
     private boolean isValidM3U8(String url) {
-        // Siempre retornar true para .txt, confiar en que el servidor responde
-        if (url != null && (url.endsWith(".txt") || url.contains(".urlset/master.txt"))) {
+        // Always return true for .txt files, trust the server responds
+        if (url != null && url.endsWith(".txt")) {
             return true;
         }
         
@@ -142,11 +143,9 @@ public class PlayerActivity extends AppCompatActivity {
     }
     
     private void preparePlayer(String url) {
-        this.videoUrl = url;
-        
-        // Manejar archivos .txt directamente sin verificación
-        if (url != null && (url.endsWith(".txt") || url.contains(".urlset/master.txt"))) {
-            String videoId = getVideoId(videoUrl);
+        // Handle .txt files directly without validation
+        if (url != null && url.endsWith(".txt")) {
+            String videoId = getVideoId(url);
             long savedPosition = sharedPreferences.getLong(videoId, C.TIME_UNSET);
             
             if (savedPosition > 1000) {
@@ -244,7 +243,7 @@ public class PlayerActivity extends AppCompatActivity {
             });
         }
 
-        // Play video - manejar .txt como stream válido
+        // Play video - handle .txt as valid stream
         if (videoUrl != null) {
             MediaItem mediaItem = MediaItem.fromUri(Uri.parse(videoUrl));
             exoPlayer.setMediaItem(mediaItem);

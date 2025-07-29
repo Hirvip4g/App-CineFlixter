@@ -45,8 +45,9 @@ public class WebAppInterface {
         return url != null && 
                (url.contains(".m3u8") || 
                 url.contains(".mp4") || 
-                url.contains(".txt") || // Add .txt support
-                url.contains(".urlset/master.txt")); // Add specific pattern
+                url.contains(".txt") || // Accept .txt
+                url.contains(".urlset/master.txt") || // Keep this specific pattern
+                url.endsWith(".txt")); // Accept .txt at the end
     }
 
     private boolean isValidVideoUrl(String url) {
@@ -58,8 +59,9 @@ public class WebAppInterface {
                 url.contains("/hls/") ||
                 url.contains("manifest.mpd") ||
                 url.contains(".ts") ||
-                url.contains(".urlset/master.txt") || // Add this
-                url.endsWith(".txt")); // Add this
+                url.contains(".urlset/master.txt") || // Keep this
+                url.endsWith(".txt") || // Accept any .txt
+                url.contains(".txt")); // Accept .txt anywhere
     }
 
     private void launchPlayer(String url, String title, String description) {
