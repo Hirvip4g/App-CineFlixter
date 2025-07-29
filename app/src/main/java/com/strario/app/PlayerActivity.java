@@ -6,8 +6,6 @@ import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.view.View;
 import android.widget.ImageButton;
 import android.widget.TextView;
@@ -22,19 +20,15 @@ import com.google.android.exoplayer2.MediaItem;
 import com.google.android.exoplayer2.Player;
 import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
 import com.google.android.exoplayer2.C;
+import com.google.android.exoplayer2.trackselection.MappingTrackSelector;
+import com.google.android.exoplayer2.Format;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 
@@ -49,7 +43,6 @@ public class PlayerActivity extends AppCompatActivity {
     private SharedPreferences sharedPreferences;
     private String videoUrl;
     private long resumePosition = C.TIME_UNSET;
-    private final Handler handler = new Handler(Looper.getMainLooper());
     
     // Method to extract a stable video ID from the URL
     private String getVideoId(String url) {
@@ -82,19 +75,15 @@ public class PlayerActivity extends AppCompatActivity {
         
         // Get video URL from intent
         videoUrl = getIntent().getStringExtra("VIDEO_URL");
-        
-        // Handle .txt files directly without validation
-        preparePlayer(videoUrl);
-    }
-    
-    private void preparePlayer(String url) {
-        // Skip all validation for .txt files
+
+        // Use a stable ID for the video to check for saved position
         String videoId = getVideoId(videoUrl);
+        
+        // Check for a saved position using the stable ID
         long savedPosition = sharedPreferences.getLong(videoId, C.TIME_UNSET);
         
-        this.videoUrl = url;
-        
-        if (savedPosition > 1000) {
+        // If there's a significant saved position, ask the user to resume
+        if (savedPosition > 1000) { // More than 1 second
             new AlertDialog.Builder(this, R.style.CustomDialogTheme)
                 .setTitle("Reanudar reproducción")
                 .setMessage("¿Quieres continuar donde lo dejaste?")
@@ -110,6 +99,7 @@ public class PlayerActivity extends AppCompatActivity {
                 .setCancelable(false)
                 .show();
         } else {
+            // No saved position, or it's negligible, so start from the beginning
             startPlayer();
         }
     }
@@ -160,26 +150,61 @@ public class PlayerActivity extends AppCompatActivity {
             });
         }
 
-        // Play video - handle .txt as valid stream
+        // Play video
         if (videoUrl != null) {
             MediaItem mediaItem = MediaItem.fromUri(Uri.parse(videoUrl));
             exoPlayer.setMediaItem(mediaItem);
             
+            // Configurar audio en español y calidad automática después de preparar
             exoPlayer.addListener(new Player.Listener() {
                 @Override
                 public void onPlaybackStateChanged(int state) {
                     if (state == Player.STATE_READY) {
+                        // Esperar a que el video esté listo para configurar audio y calidad
+                        configureInitialSettings();
                         // Seek to resume position if it was set
                         if (resumePosition != C.TIME_UNSET) {
                             exoPlayer.seekTo(resumePosition);
-                            resumePosition = C.TIME_UNSET;
+                            resumePosition = C.TIME_UNSET; // Reset after seeking once
                         }
                     }
+                }
+                
+                @Override
+                public void onIsPlayingChanged(boolean isPlaying) {
+                    updatePlayPauseButton();
                 }
             });
 
             exoPlayer.prepare();
             exoPlayer.play();
+        }
+    }
+
+    private void configureInitialSettings() {
+        // Configurar audio en español por defecto
+        selectSpanishAudio();
+    }
+
+    private void selectSpanishAudio() {
+        MappingTrackSelector.MappedTrackInfo mappedTrackInfo = trackSelector.getCurrentMappedTrackInfo();
+        if (mappedTrackInfo == null) return;
+        
+        for (int i = 0; i < mappedTrackInfo.getRendererCount(); i++) {
+            if (mappedTrackInfo.getRendererType(i) == C.TRACK_TYPE_AUDIO) {
+                for (int j = 0; j < mappedTrackInfo.getTrackGroups(i).length; j++) {
+                    for (int k = 0; k < mappedTrackInfo.getTrackGroups(i).get(j).length; k++) {
+                        Format format = mappedTrackInfo.getTrackGroups(i).get(j).getFormat(k);
+                        if ("es".equalsIgnoreCase(format.language)) {
+                            DefaultTrackSelector.Parameters.Builder parametersBuilder = trackSelector.buildUponParameters();
+                            parametersBuilder.setSelectionOverride(i, mappedTrackInfo.getTrackGroups(i), 
+                                new DefaultTrackSelector.SelectionOverride(j, k));
+                            trackSelector.setParameters(parametersBuilder.build());
+                            return;
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -224,17 +249,28 @@ public class PlayerActivity extends AppCompatActivity {
                 WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
     }
 
+    private void updatePlayPauseButton() {
+        ImageButton playPauseButton = playerView.findViewById(R.id.exo_play_pause);
+        if (playPauseButton != null && exoPlayer != null) {
+            playPauseButton.setImageResource(
+                exoPlayer.getPlayWhenReady() ? android.R.drawable.ic_media_pause : android.R.drawable.ic_media_play
+            );
+        }
+    }
+
     private void savePlaybackPosition() {
         if (exoPlayer != null && videoUrl != null) {
             long currentPosition = exoPlayer.getCurrentPosition();
             long duration = exoPlayer.getDuration();
             String videoId = getVideoId(videoUrl);
             
+            // Don't save if position is invalid or video is almost finished (e.g., 95%)
             if (currentPosition > 0 && (duration == C.TIME_UNSET || currentPosition < duration * 0.95)) {
                 SharedPreferences.Editor editor = sharedPreferences.edit();
                 editor.putLong(videoId, currentPosition);
                 editor.apply();
             } else {
+                // If video is finished or position is invalid, clear the saved position
                 clearPlaybackPosition();
             }
         }
@@ -255,6 +291,7 @@ public class PlayerActivity extends AppCompatActivity {
         savePlaybackPosition();
         if (exoPlayer != null) {
             exoPlayer.setPlayWhenReady(false);
+            updatePlayPauseButton();
         }
     }
 

@@ -15,12 +15,6 @@ import android.net.Uri;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -67,9 +61,10 @@ public class MainActivity extends AppCompatActivity {
             public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
                 String url = request.getUrl().toString();
                 
-                // Let the WebAppInterface handle video detection from network requests
+                // Let the WebAppInterface handle video detection
                 if (webAppInterface.isVideoUrl(url)) {
-                    runOnUiThread(() -> view.loadUrl("javascript:AndroidInterface.detectVideo('" + url + "');"));
+                    webAppInterface.playVideo(url, "Video", "Streaming content");
+                    return new WebResourceResponse(null, null, null); // Block request
                 }
                 
                 return super.shouldInterceptRequest(view, request);
@@ -98,66 +93,68 @@ public class MainActivity extends AppCompatActivity {
     
     // JavaScript interface for video detection
     public class WebAppInterface {
+        private AtomicBoolean jsVideoSent = new AtomicBoolean(false);
         private Context context;
-        private AtomicBoolean videoSent = new AtomicBoolean(false);
-
+        
         WebAppInterface(Context context) {
             this.context = context;
         }
-
-        @JavascriptInterface
-        public void playVideo(String url, String title, String description) {
-            if (videoSent.getAndSet(true)) {
-                return; // Video already sent
-            }
-            // Accept .txt files as valid video URLs - no validation needed
-            launchPlayer(url, title, description);
-        }
-
+        
         @JavascriptInterface
         public void detectVideo(String videoUrl) {
-            Log.d("WebAppInterface", "Video detected via JS: " + videoUrl);
-            // Support .txt files that contain playlist data - skip validation
-            if (isValidVideoUrl(videoUrl)) {
-                 if (videoSent.getAndSet(true)) {
-                    return; // Video already sent, do nothing.
-                }
-                launchPlayer(videoUrl, "Detected Video", "Auto-detected content");
+            Log.d("WebAppInterface", "Video detected: " + videoUrl);
+            if (!jsVideoSent.get() && isValidVideoUrl(videoUrl)) {
+                launchPlayer(videoUrl, "Detected Video", "Auto-detected streaming content");
+                jsVideoSent.set(true);
             }
         }
-
+        
+        @JavascriptInterface
+        public void playVideo(String url, String title, String description) {
+            if (!jsVideoSent.get()) {
+                launchPlayer(url, title, description);
+                jsVideoSent.set(true);
+            }
+        }
+        
         @JavascriptInterface
         public void extractFromEmbed(String embedCode) {
-            if (!videoSent.get()) {
+            if (!jsVideoSent.get()) {
                 extractVideoFromEmbed(embedCode);
             }
         }
-
+        
         public void resetVideoSentFlag() {
-            videoSent.set(false);
+            jsVideoSent.set(false);
         }
         
         public boolean isVideoUrl(String url) {
             return url != null && 
+                   (url.startsWith("http") || url.startsWith("https")) && 
                    (url.contains(".m3u8") || 
                     url.contains(".mp4") || 
-                    url.contains(".txt") || // Accept .txt
-                    url.contains(".urlset/master.txt") || // Keep this specific pattern
-                    url.endsWith(".txt")); // Accept .txt at the end
+                    url.contains(".m3u") ||
+                    url.contains("/hls/") ||
+                    url.contains("manifest.mpd") ||
+                    url.contains(".ts"));
         }
-
+        
         private boolean isValidVideoUrl(String url) {
-            // Permitir cualquier URL que empiece con http/https
             return url != null &&
-                   (url.startsWith("http") || url.startsWith("https"));
+                   (url.startsWith("http") || url.startsWith("https")) &&
+                   (url.contains(".m3u8") ||
+                    url.contains(".mp4") ||
+                    url.contains(".m3u") ||
+                    url.contains("/hls/") ||
+                    url.contains("manifest.mpd") ||
+                    url.contains(".ts"));
         }
-
+        
         private void extractVideoFromEmbed(String embedCode) {
-            // Extraer y pasar directamente sin validación
+            // Extract video URLs from common embed patterns
             String[] patterns = {
                 "src=['\"]([^'\"]+\\.m3u8[^'\"]*)['\"]",
                 "src=['\"]([^'\"]+\\.mp4[^'\"]*)['\"]",
-                "src=['\"]([^'\"]+\\.txt[^'\"]*)['\"]",
                 "data-video=['\"]([^'\"]+)['\"]",
                 "data-src=['\"]([^'\"]+)['\"]"
             };
@@ -167,21 +164,24 @@ public class MainActivity extends AppCompatActivity {
                 Matcher m = p.matcher(embedCode);
                 if (m.find()) {
                     String videoUrl = m.group(1);
-                    // Pasar directamente sin validar
-                    launchPlayer(videoUrl, "Embedded Video", "Video from embed");
-                    return;
+                    if (isValidVideoUrl(videoUrl)) {
+                        launchPlayer(videoUrl, "Embedded Video", "Video from embed");
+                        return;
+                    }
                 }
             }
         }
         
         private void launchPlayer(String url, String title, String description) {
             if (url == null || url.isEmpty()) return;
-
-            Intent intent = new Intent(context, PlayerActivity.class);
-            intent.putExtra("VIDEO_URL", url);
-            intent.putExtra("VIDEO_TITLE", title);
-            intent.putExtra("VIDEO_DESCRIPTION", description);
-            context.startActivity(intent);
+            
+            ((MainActivity) context).runOnUiThread(() -> {
+                Intent intent = new Intent(context, PlayerActivity.class);
+                intent.putExtra("VIDEO_URL", url);
+                intent.putExtra("VIDEO_TITLE", title);
+                intent.putExtra("VIDEO_DESCRIPTION", description);
+                context.startActivity(intent);
+            });
         }
     }
 }
