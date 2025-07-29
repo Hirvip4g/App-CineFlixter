@@ -61,16 +61,15 @@ public class MainActivity extends AppCompatActivity {
                 webAppInterface.resetVideoSentFlag();
 
                 if (StreamWishExtractor.isSupported(url)) {
-                    // Handle supported embed URLs with the extractor
+                    // Usar el nuevo extractor solo para swiftplayers.com
                     StreamWishExtractor.extract(MainActivity.this, url, videoUrl -> {
                         if (videoUrl != null) {
-                            StreamWishExtractor.launchPlayer(MainActivity.this, videoUrl, "Extracted Video");
+                            StreamWishExtractor.launchPlayer(MainActivity.this, videoUrl, "SwiftPlayers Video");
                         } else {
-                            // If extraction fails, load the original URL in WebView as a fallback.
+                            // Si falla, cargar la URL original
                             view.loadUrl(url);
                         }
                     });
-                    // Return true to indicate we've handled the URL loading.
                     return true;
                 }
                 

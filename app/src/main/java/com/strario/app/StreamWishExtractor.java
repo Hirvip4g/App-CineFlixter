@@ -21,13 +21,9 @@ public class StreamWishExtractor {
     private static final ExecutorService executor = Executors.newSingleThreadExecutor();
     private static final Handler handler = new Handler(Looper.getMainLooper());
     
-    // Domain aliases for StreamWish
+    // Solo dominio swiftplayers.com
     private static final String[] DOMAINS = {
-        "streamwish.to", "streamwish.com", "ajmidyad.sbs", "khadhnayad.sbs", "yadmalik.sbs",
-        "hayaatieadhab.sbs", "kharabnahs.sbs", "atabkhha.sbs", "atabknha.sbs", "atabknhk.sbs",
-        "atabknhs.sbs", "abkrzkr.sbs", "abkrzkz.sbs", "wishembed.pro", "mwish.pro", "strmwis.xyz",
-        "awish.pro", "dwish.pro", "embedwish.com", "cilootv.store", "uqloads.xyz", "hlswish.com",
-        "swiftplayers.com", "swishsrv.com", "playerwish.com", "streamwish.site", "wishfast.top"
+        "https://swiftplayers.com"
     };
 
     public interface ExtractionListener {
@@ -35,17 +31,16 @@ public class StreamWishExtractor {
     }
 
     public static void extract(Context context, String pageUrl, ExtractionListener listener) {
-        executor.execute(() -> {
+        new Thread(() -> {
             try {
                 URL url = new URL(pageUrl);
                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                 
-                // Common headers to bypass restrictions
-                connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Safari/537.36");
-                connection.setRequestProperty("Referer", getRefererFromUrl(pageUrl));
+                // Headers necesarios
+                connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+                connection.setRequestProperty("Referer", "https://swiftplayers.com");
                 connection.setRequestProperty("Accept", "*/*");
                 connection.setRequestProperty("Accept-Language", "en-US,en;q=0.9");
-                connection.setRequestProperty("Connection", "keep-alive");
                 
                 BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
                 String inputLine;
@@ -58,59 +53,30 @@ public class StreamWishExtractor {
 
                 String htmlContent = content.toString();
                 
-                // First try to extract from eval/packed JS
-                String unpacked = unpackJS(htmlContent);
-                String videoUrl = extractVideoUrl(unpacked != null ? unpacked : htmlContent);
+                // Extraer URL del video usando el patrón específico
+                String videoUrl = extractVideoUrl(htmlContent);
                 
                 if (videoUrl != null) {
-                    Log.d(TAG, "Extracted URL: " + videoUrl);
-                    handler.post(() -> listener.onExtractionResult(videoUrl));
+                    Log.d(TAG, "URL extraída: " + videoUrl);
+                    listener.onExtractionResult(videoUrl);
                 } else {
-                    Log.e(TAG, "Could not extract video URL from: " + pageUrl);
-                    handler.post(() -> listener.onExtractionResult(null));
+                    Log.e(TAG, "No se pudo extraer el video de: " + pageUrl);
+                    listener.onExtractionResult(null);
                 }
 
             } catch (Exception e) {
-                Log.e(TAG, "Extraction failed for " + pageUrl, e);
-                handler.post(() -> listener.onExtractionResult(null));
+                Log.e(TAG, "Error en extracción de " + pageUrl, e);
+                listener.onExtractionResult(null);
             }
-        });
-    }
-
-    private static String unpackJS(String html) {
-        // Pattern to find packed/eval JS code
-        Pattern pattern = Pattern.compile("eval\\(function\\(p,a,c,k,e,d\\).*?\\)\\);");
-        Matcher matcher = pattern.matcher(html);
-        
-        if (matcher.find()) {
-            String packed = matcher.group();
-            // Basic unpacking - this is a simplified version
-            // For production, use a proper JavaScript unpacker
-            Pattern urlPattern = Pattern.compile("file:\"(.*?\\.m3u8.*?)\"");
-            Matcher urlMatcher = urlPattern.matcher(packed);
-            if (urlMatcher.find()) {
-                return packed;
-            }
-        }
-        
-        // Alternative patterns for different embeds
-        Pattern alt = Pattern.compile("sources:\\s*\\[\\s*\\{[^}]*file:\\s*\"([^\"]+\\.m3u8[^\"]*)\"");
-        Matcher altMatcher = alt.matcher(html);
-        if (altMatcher.find()) {
-            return altMatcher.group(1);
-        }
-        
-        return html;
+        }).start();
     }
 
     private static String extractVideoUrl(String content) {
-        // Try multiple patterns to extract m3u8 URL
+        // Patrones para extraer .m3u8
         String[] patterns = {
-            "file:\\s*\"(https:[^\"]*\\.m3u8[^\"]*)\"",
-            "sources:\\s*\\[\\s*\\{[^}]*file:\\s*\"([^\"]+\\.m3u8[^\"]*)\"",
             "\"hls(\\d+)\"\\s*:\\s*\"(https:[^\"]+\\.m3u8[^\"]*)\"",
-            "data-url=\"([^\"]*\\.m3u8[^\"]*)\"",
-            "src:\\s*\"([^\"]*\\.m3u8[^\"]*)\""
+            "file:\\s*\"(https:[^\"]*\\.m3u8[^\"]*)\"",
+            "sources:\\s*\\[\\s*\\{[^}]*file:\\s*\"([^\"]+\\.m3u8[^\"]*)"
         };
         
         for (String pattern : patterns) {
@@ -118,7 +84,7 @@ public class StreamWishExtractor {
             Matcher m = p.matcher(content);
             if (m.find()) {
                 String url = m.group(m.groupCount());
-                if (url != null && url.startsWith("http")) {
+                if (url.startsWith("http")) {
                     return url;
                 }
             }
@@ -127,30 +93,9 @@ public class StreamWishExtractor {
         return null;
     }
 
-    private static String getRefererFromUrl(String url) {
-        try {
-            URL parsedUrl = new URL(url);
-            return parsedUrl.getProtocol() + "://" + parsedUrl.getHost();
-        } catch (Exception e) {
-            return "https://streamwish.to";
-        }
-    }
-
     public static boolean isSupported(String url) {
         if (url == null) return false;
-        
-        for (String domain : DOMAINS) {
-            if (url.contains(domain)) {
-                return true;
-            }
-        }
-        
-        // Also check for common embed patterns
-        return url.contains("streamwish") || 
-               url.contains("swiftplayers") || 
-               url.contains("hlswish") || 
-               url.contains("playerwish") ||
-               url.contains("uqloads");
+        return url.contains("swiftplayers.com");
     }
 
     public static void launchPlayer(Context context, String url, String title) {
@@ -159,7 +104,7 @@ public class StreamWishExtractor {
         Intent intent = new Intent(context, PlayerActivity.class);
         intent.putExtra("VIDEO_URL", url);
         intent.putExtra("VIDEO_TITLE", title);
-        intent.putExtra("VIDEO_DESCRIPTION", "Streamed content");
+        intent.putExtra("VIDEO_DESCRIPTION", "Contenido de SwiftPlayers");
         context.startActivity(intent);
     }
 
